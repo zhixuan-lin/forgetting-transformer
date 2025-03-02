@@ -24,7 +24,7 @@ git clone git@github.com:zhixuan-lin/forgetting-transformer.git
 pip install --editable .
 ```
 
-For the first installation methods we recommend you keep track of the commit hash you used. We may introduce breaking changes in the future.
+For the first installation method we recommend you keep track of the commit hash you used. We may introduce breaking changes in the future.
 
 Note that both installation methods DO NOT install any dependencies by default. The needed dependencies depend on what you want to use and will be explained below.
 
@@ -191,9 +191,9 @@ config = ForgettingTransformerConfig(
 )
 model = ForgettingTransformerForCausalLM(config).to(device)
 
-input_ids = torch.randint(0, vocab_size, size=(batch_size, seqlen), device=device)
-labels = torch.roll(input_ids, shifts=1, dims=-1)
-labels[:, 0] = bos_token_id
+labels = torch.randint(0, vocab_size, size=(batch_size, seqlen), device=device)
+input_ids = torch.roll(labels, shifts=1, dims=-1)
+input_ids[:, 0] = bos_token_id
 out = model(input_ids=input_ids, labels=labels)
 assert out.loss.size() == (batch_size, seqlen)
 # Logits are not returned (to save memory) if labels are given

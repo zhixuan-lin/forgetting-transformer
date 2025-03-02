@@ -247,7 +247,7 @@ def forgetting_attention(
               useful for left-padded inputs.
         - causal: Whether causal masking is applied to attention scores before applying 
               softmax. Must be True for now.
-        - sm_scale (float): The scaling of attention scores before applying softmax. If
+        - sm_scale: The scaling of attention scores before applying softmax. If
               None, it defaults to (1.0 / math.sqrt(head_dim))
 
     Returns:
