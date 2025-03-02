@@ -13,7 +13,7 @@ Python 3.10 or above is recommended.
 If you just want to use the Forgetting Attention kernel and the FoX model, you can install this repository as a regular Python package:
 
 ```bash
-# Uninstall to prevent potential issues
+# First uninstall to prevent potential issues
 pip uninstall forgetting_transformer && pip install -U git+https://github.com/zhixuan-lin/forgetting-transformer
 ```
 
@@ -33,9 +33,8 @@ Note that both installation methods DO NOT install any dependencies by default. 
 If you only want to use the Forgetting Attention kernel (e.g., as a replacement for the FlashAttention kernel), you need to install the following (we pin the versions to ensure that this works; you don't have to):
 
 ```bash
-pip install numpy==2.0.1
+pip install pytest einops numpy
 pip install torch==2.4.0
-pip install pytest einops
 ```
 
 The documentation for `forgetting_attention` is as follows:
@@ -68,19 +67,19 @@ def forgetting_attention(
               This should be the **log** of the forget gates. This is typically the 
               output of torch.nn.functional.log_sigmoid.
         - head_first: if True, the order the num_heads and seqlen_* axis of the all 
-              Tensor inputs and outputs should be (num_heads, seq_len_*) instead of
+              FloatTensor inputs and outputs should be (num_heads, seq_len_*) instead of
               (seq_len_*, num_heads)
-        - seq_start: if not None, should be LongTensor with (batch_size,) with range in
-              [0, seq_len_k). For each batch index batch_id, no attention will be 
-              allocated to tokens before token index seq_start[batch_id]. This is 
-              useful for left-padded inputs.
+        - seq_start: If not None, should be LongTensor with shape (batch_size,) 
+              and range in [0, seq_len_k). For each batch index batch_id, no attention 
+              will be allocated to tokens before the token index seq_start[batch_id]. 
+              This is useful for left-padded inputs.
         - causal: Whether causal masking is applied to attention scores before applying 
               softmax. Must be True for now.
-        - sm_scale (float): The scaling of attention scores before applying softmax. If
+        - sm_scale: The scaling of attention scores before applying softmax. If
               None, it defaults to (1.0 / math.sqrt(head_dim))
 
     Returns:
-        out (torch.Tensor): (batch_size, num_heads, seqlen_q, headdim) unless head_first=True.
+        out (torch.Tensor): (batch_size, num_heads, seqlen_q, head_dim) unless head_first=True.
     """
 ```
 
@@ -114,9 +113,8 @@ assert out.size() == (batch_size, seqlen, num_heads, head_dim)
 If you want to use the FoX time-mixing layer or the whole model, you need the following dependencies (again versions are pinned just in case):
 
 ```bash
-pip install numpy==2.0.1
+pip install pytest einops numpy
 pip install torch==2.4.0
-pip install pytest einops
 pip install transformers==4.44.0
 # No guarantee other commits would work; we may fix this later
 pip install --no-deps --force-reinstall git+https://github.com/sustcsonglin/flash-linear-attention.git@1c5937eeeb8b0aa17bed5ee6dae345b353196bd4
@@ -187,7 +185,7 @@ config = ForgettingTransformerConfig(
     qk_norm=True,
     use_k_shift=True,
     use_v_shift=True,
-    hidden_ratio=3.5   # output gates introduces extra params so we reduce MLP hidden size
+    hidden_ratio=3.5   # output gates introduce extra params so we reduce MLP hidden size
 )
 model = ForgettingTransformerForCausalLM(config).to(device)
 
@@ -198,7 +196,7 @@ out = model(input_ids=input_ids, labels=labels)
 assert out.loss.size() == (batch_size, seqlen)
 # Logits are not returned (to save memory) if labels are given
 assert out.logits is None
-# To get logits are not returned don't provide labels
+# To get logits don't provide labels
 out = model(input_ids=input_ids)
 assert out.logits.size() == (batch_size, seqlen, vocab_size)
 
@@ -243,7 +241,7 @@ Work in progress. This will be updated soon.
 
 ## Acknowledgements
 
-All the baselines are based on [flash-linear-attention](https://github.com/fla-org/flash-linear-attention). The Forgetting Attention kernel is based on the Triton FlashAttention kernel implemented in [FlagAttention](https://github.com/FlagOpen/FlagAttention). The repository structure is inspired by [litgpt](https://github.com/Lightning-AI/litgpt) and the [FlashAttention](https://github.com/Dao-AILab/flash-attention) training code. Some components are also taken from these these repositories.
+All the model implementations are based on [flash-linear-attention](https://github.com/fla-org/flash-linear-attention). The Forgetting Attention kernel is based on the Triton FlashAttention kernel implemented in [FlagAttention](https://github.com/FlagOpen/FlagAttention). The repository structure is inspired by [litgpt](https://github.com/Lightning-AI/litgpt) and the [FlashAttention](https://github.com/Dao-AILab/flash-attention) training code. Some components are also taken from these these repositories.
 
 ## Citation
 
