@@ -1,0 +1,65 @@
+# @package _global_
+defaults:
+  - override /model: transformer
+  - override /optimizer: adamw
+  - override /schedule: warmup_cosine
+  - override /datamodule: longcrawl64
+  - override /strategy: fsdp
+  - _self_
+
+exp: ???
+tag: ???
+seed: 0
+
+output_dir: ???
+data_dir: ???  # data_dir / 'longcrawl' / 'train.zarr' should exist
+
+resume: True
+
+log_interval: 33554432               # 32Mi. 32 times per billion
+train_eval_interval: 536870912       # 512Mi
+checkpoint_interval: 268435456       # 256Mi In tokens. 4 times per 1Bi. It is worth it
+
+skip_eval: true
+eval_interval: 7516192768            # Only at the end. Not used due to skip_eval
+checkpoint_keep_interval: 7516192768 # Only at the end
+
+fabric:
+  devices: auto
+  precision: 'bf16-mixed'
+
+train:
+  max_tokens: 7516192768  # 7 Bi
+  # Used for one gradient accumulation step, must be larger than batch_len
+  grad_acc_tokens: 16384
+  max_grad_norm: 1.0
+  gradient_checkpointing: false
+
+model:
+  config:
+    hidden_size: 1024
+    num_hidden_layers: 24
+    num_heads: 16
+    rope_base: 500000
+
+optimizer: 
+  lr: 0.002
+  betas: [0.9, 0.95]
+  weight_decay: 0.1
+
+schedule:
+  init_value: 0.0
+  peak_value: ${optimizer.lr}
+  warmup_steps: 268435456  # 256Mi
+  decay_steps: ${train.max_tokens}
+  end_value: 0.0
+
+datamodule:
+  train_batch_len: 16384
+  train_batch_size: 32
+  train_num_workers: 2
+
+  eval_batch_len: 16384
+  eval_local_batch_size: 1
+  eval_tokens: 2147483648  # 2Bi
+  eval_num_workers: 2

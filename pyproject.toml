@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forgetting-transformer"
+dynamic = ["version"]
+description = "Official implementation of the Forgetting Transformer"
+readme = "README.md"
+authors = [
+    { name = "Zhixuan Lin", email = "zxlin.cs@gmail.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.10"
+dependencies = [
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/zhixuan-lin/forgetting-transformer"
+
+[tool.setuptools.dynamic]
+version = {attr = "forgetting_transformer.__version__"}

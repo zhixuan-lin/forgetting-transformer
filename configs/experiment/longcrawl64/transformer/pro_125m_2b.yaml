@@ -1,0 +1,75 @@
+# @package _global_
+defaults:
+  - override /model: forgetting_transformer
+  - override /optimizer: adamw
+  - override /schedule: warmup_cosine
+  - override /datamodule: longcrawl64
+  - override /strategy: fsdp
+  - _self_
+
+exp: ???
+tag: ???
+seed: 0
+
+output_dir: ???
+data_dir: ???  # data_dir / 'longcrawl' / 'train.zarr' should exist
+
+resume: True
+
+log_interval: 33554432               # 32Mi. 32 times per billion
+train_eval_interval: 536870912       # 512Mi
+checkpoint_interval: 268435456       # 256Mi In tokens. 4 times per 1Bi. It is worth it
+
+skip_eval: true
+eval_interval: 2684354560            # Only at the end. Not used due to skip_eval
+checkpoint_keep_interval: 2684354560 # Only at the end
+
+fabric:
+  devices: auto
+  precision: 'bf16-mixed'
+
+train:
+  max_tokens: 2684354560  # 2.5 Bi
+  # Used for one gradient accumulation step, must be larger than batch_len
+  grad_acc_tokens: 32768
+  max_grad_norm: 1.0
+  gradient_checkpointing: false
+
+model:
+  config:
+    hidden_size: 768
+    num_hidden_layers: 12
+    num_heads: 12
+    rope_base: 500000
+    # Pro config. Note this is implemented as FoX with fgate_type="none" and use_rope=true
+    # See the `- override /model: forgetting_transformer` on top of this file
+    use_rope: true
+    fgate_type: "none"
+    use_v_shift: true
+    use_k_shift: true
+    qk_norm: true
+    use_output_gate: true
+    use_output_norm: true
+    hidden_ratio: 3.5   # output gates use extra params so we reduce it here
+
+optimizer: 
+  lr: 0.002
+  betas: [0.9, 0.95]
+  weight_decay: 0.1
+
+schedule:
+  init_value: 0.0
+  peak_value: ${optimizer.lr}
+  warmup_steps: 268435456  # 256Mi
+  decay_steps: ${train.max_tokens}
+  end_value: 0.0
+
+datamodule:
+  train_batch_len: 16384
+  train_batch_size: 32
+  train_num_workers: 2
+
+  eval_batch_len: 16384
+  eval_local_batch_size: 2
+  eval_tokens: 2147483648  # 2Bi
+  eval_num_workers: 2
