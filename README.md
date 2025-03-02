@@ -187,7 +187,7 @@ config = ForgettingTransformerConfig(
     qk_norm=True,
     use_k_shift=True,
     use_v_shift=True,
-  	hidden_ratio=3.5   # output gates introduces extra params so we reduce MLP hidden size
+    hidden_ratio=3.5   # output gates introduces extra params so we reduce MLP hidden size
 )
 model = ForgettingTransformerForCausalLM(config).to(device)
 
@@ -196,6 +196,12 @@ labels = torch.roll(input_ids, shifts=1, dims=-1)
 labels[:, 0] = bos_token_id
 out = model(input_ids=input_ids, labels=labels)
 assert out.loss.size() == (batch_size, seqlen)
+# Logits are not returned (to save memory) if labels are given
+assert out.logits is None
+# To get logits are not returned don't provide labels
+out = model(input_ids=input_ids)
+assert out.logits.size() == (batch_size, seqlen, vocab_size)
+
 
 print(model)
 
