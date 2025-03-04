@@ -218,6 +218,7 @@ def forgetting_attention(
     k: torch.Tensor,
     v: torch.Tensor,
     log_fgate: torch.Tensor,
+    *,
     head_first: bool = False,
     seq_start: Optional[torch.Tensor] = None,
     sm_scale: Optional[float] = None,
@@ -238,19 +239,17 @@ def forgetting_attention(
               This should be the **log** of the forget gates. This is typically the 
               output of torch.nn.functional.log_sigmoid.
         - head_first: if True, the order the num_heads and seqlen_* axis of the all 
-              Tensor inputs and outputs should be (num_heads, seq_len_*) instead of
+              FloatTensor inputs and outputs should be (num_heads, seq_len_*) instead of
               (seq_len_*, num_heads)
-        - seq_start: if not None, should be LongTensor with (batch_size,) with range in
-              [0, seq_len_k). For each batch index batch_id, no attention will be 
-              allocated to tokens before token index seq_start[batch_id]. This is 
-              useful for left-padded inputs.
-        - causal: Whether causal masking is applied to attention scores before applying 
-              softmax. Must be True for now.
+        - seq_start: If not None, should be LongTensor with shape (batch_size,) 
+              and range in [0, seq_len_k). For each batch index batch_id, no attention 
+              will be allocated to tokens before the token index seq_start[batch_id]. 
+              This is useful for left-padded inputs.
         - sm_scale: The scaling of attention scores before applying softmax. If
               None, it defaults to (1.0 / math.sqrt(head_dim))
 
     Returns:
-        out (torch.Tensor): (batch_size, num_heads, seqlen_q, headdim) unless head_first=True.
+        out (torch.Tensor): (batch_size, num_heads, seqlen_q, head_dim) unless head_first=True.
     """
     if not head_first:
         q, k, v = [rearrange(item, "b t h d -> b h t d") for item in (q, k, v)]

@@ -47,6 +47,7 @@ def forgetting_attention(
     k: torch.Tensor,
     v: torch.Tensor,
     log_fgate: torch.Tensor,
+    *,
     head_first: bool = False,
     seq_start: Optional[torch.Tensor] = None,
     sm_scale: Optional[float] = None,
