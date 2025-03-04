@@ -387,7 +387,6 @@ class ForgettingAttentionLayer(nn.Module):
                 log_fgate,
                 head_first=True,
                 seq_start=seq_start,
-                causal=True,
                 sm_scale=1 / math.sqrt(self.head_dim),
             )
             o = rearrange(o, "b h t d -> b t h d")
@@ -396,7 +395,6 @@ class ForgettingAttentionLayer(nn.Module):
                 q, k, v,
                 log_fgate,
                 head_first=True,
-                causal=True,
                 sm_scale=1 / math.sqrt(self.head_dim),
             )
             o = rearrange(o, "b h t d -> b t h d")

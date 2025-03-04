@@ -49,7 +49,6 @@ def forgetting_attention(
     log_fgate: torch.Tensor,
     head_first: bool = False,
     seq_start: Optional[torch.Tensor] = None,
-    causal: bool = True,
     sm_scale: Optional[float] = None,
 ):
     """
@@ -74,8 +73,6 @@ def forgetting_attention(
               and range in [0, seq_len_k). For each batch index batch_id, no attention 
               will be allocated to tokens before the token index seq_start[batch_id]. 
               This is useful for left-padded inputs.
-        - causal: Whether causal masking is applied to attention scores before applying 
-              softmax. Must be True for now.
         - sm_scale: The scaling of attention scores before applying softmax. If
               None, it defaults to (1.0 / math.sqrt(head_dim))
 

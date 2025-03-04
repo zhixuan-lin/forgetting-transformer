@@ -220,7 +220,6 @@ def forgetting_attention(
     log_fgate: torch.Tensor,
     head_first: bool = False,
     seq_start: Optional[torch.Tensor] = None,
-    causal: bool = True,
     sm_scale: Optional[float] = None,
 ):
     """
@@ -256,7 +255,7 @@ def forgetting_attention(
     if not head_first:
         q, k, v = [rearrange(item, "b t h d -> b h t d") for item in (q, k, v)]
         log_fgate = rearrange(log_fgate, "b t h -> b h t")
-    out = ForgettingAttention.apply(q, k, v, log_fgate, seq_start, causal, sm_scale, False)
+    out = ForgettingAttention.apply(q, k, v, log_fgate, seq_start, True, sm_scale, False)
     if not head_first:
         out = rearrange(out, "b h t d -> b t h d")
     return out
@@ -978,7 +977,7 @@ def test_op(Z, H, M, N, HEAD_DIM, causal, dtype=torch.float32):
     ref_dq, q.grad = q.grad.clone(), None
     ref_dlog_fgate, log_fgate.grad = log_fgate.grad.clone(), None
     # triton implementation
-    tri_out = forgetting_attention(q, k, v, log_fgate, True, seq_start, causal, sm_scale)
+    tri_out = forgetting_attention(q, k, v, log_fgate, head_first=True, seq_start=seq_start, sm_scale=sm_scale)
     tri_out = tri_out.to(dtype)
 
     tri_out.backward(dout)
@@ -1058,7 +1057,7 @@ def bench_flash_attention(BATCH, H, N_CTX, HEAD_DIM, causal, mode, provider, dev
         #     v = v.permute(0, 1, 3, 2)
         #     v = v.to(torch.float8_e5m2)
         sm_scale = 1.3
-        fn = lambda: forgetting_attention(q, k, v, log_fgate, head_first=True, causal=causal, sm_scale=sm_scale)
+        fn = lambda: forgetting_attention(q, k, v, log_fgate, head_first=True, sm_scale=sm_scale)
         if mode == "bwd":
             o = fn()
             do = torch.randn_like(o)
