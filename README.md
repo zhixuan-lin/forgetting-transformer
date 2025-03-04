@@ -21,6 +21,7 @@ If you want to run the training code or modify the code, it is best to clone thi
 
 ```bash
 git clone git@github.com:zhixuan-lin/forgetting-transformer.git
+cd forgetting-transformer
 pip install --editable .
 ```
 
