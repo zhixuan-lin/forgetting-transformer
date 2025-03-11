@@ -1,6 +1,8 @@
 import json
 from typing import Callable, Dict, Union, Optional, Tuple, NamedTuple, Any, List
-from transformers import GPT2Tokenizer
+from transformers import GPT2Tokenizer, PretrainedConfig, AutoTokenizer
+
+
 
 class JSONGPT2Tokenizer(GPT2Tokenizer):
     def prepare_for_tokenization(self, text, is_split_into_words=False, **kwargs):
@@ -29,3 +31,8 @@ class JSONGPT2Tokenizer(GPT2Tokenizer):
             # Best effort decoding
             text = text.encode().decode("unicode_escape", "ignore")
         return text
+
+class DummyConfig(PretrainedConfig):
+    pass
+
+AutoTokenizer.register(DummyConfig, JSONGPT2Tokenizer)
