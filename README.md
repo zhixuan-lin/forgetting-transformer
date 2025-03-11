@@ -17,7 +17,7 @@ If you just want to use the Forgetting Attention kernel and the FoX model, you c
 pip uninstall forgetting_transformer && pip install -U git+https://github.com/zhixuan-lin/forgetting-transformer
 ```
 
-If you want to run the training code or modify the code, it is best to clone this repostiry and do an [editable install](https://setuptools.pypa.io/en/latest/userguide/development_mode.html):
+If you want to run the training code or modify the code, it is best to clone this repository and do an [editable install](https://setuptools.pypa.io/en/latest/userguide/development_mode.html):
 
 ```bash
 git clone git@github.com:zhixuan-lin/forgetting-transformer.git
@@ -66,7 +66,7 @@ def forgetting_attention(
         - v: (batch_size, seqlen_k, num_heads, head_dim) unless head_first=True.
         - log_fgate: (batch_size, seqlen_k, num_heads) unless head_first=True. 
               This should be the **log** of the forget gates. This is typically the 
-              output of torch.nn.functional.log_sigmoid.
+              output of torch.nn.functional.logsigmoid.
         - head_first: if True, the order the num_heads and seqlen_* axis of the all 
               FloatTensor inputs and outputs should be (num_heads, seq_len_*) instead of
               (seq_len_*, num_heads)
