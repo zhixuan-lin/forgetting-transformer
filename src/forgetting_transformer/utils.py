@@ -6,11 +6,15 @@ from lightning.fabric.utilities import rank_zero_only
 import time
 import datetime
 from torch import nn
-import fla
-try:
-    import mamba_ssm
-except ImportError:
-    mamba_ssm = None
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings(action="ignore", message="Flash Attention is not installed")
+    warnings.filterwarnings(action="ignore", message="`torch.cuda.amp")
+    import fla
+    try:
+        import mamba_ssm
+    except ImportError:
+        mamba_ssm = None
 import lightning as L
 from collections import deque, defaultdict, OrderedDict
 from forgetting_transformer.model.forgetting_transformer.modeling_forgetting_transformer import GroupRMSNorm
