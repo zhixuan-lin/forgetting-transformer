@@ -4,7 +4,10 @@ import math
 from typing import Dict, Optional
 
 from transformers.configuration_utils import PretrainedConfig
-from omegaconf import DictConfig, OmegaConf
+try:
+    from omegaconf import DictConfig, OmegaConf
+except ImportError:
+    DictConfig, OmegaConf = None, None
 
 
 class SambaConfig(PretrainedConfig):
