@@ -88,7 +88,7 @@ class Mamba2Config(PretrainedConfig):
             Whether to tie word embeddings or not.
     """
 
-    model_type = "mamba2"
+    model_type = "mamba2-project_fox"
 
     def __init__(
         self,

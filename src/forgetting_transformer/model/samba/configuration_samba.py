@@ -9,7 +9,7 @@ from omegaconf import DictConfig, OmegaConf
 
 class SambaConfig(PretrainedConfig):
 
-    model_type = "samba"
+    model_type = "samba-project_fox"
 
     def __init__(
         self,

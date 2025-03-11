@@ -7,7 +7,7 @@ from transformers.configuration_utils import PretrainedConfig
 
 class ForgettingTransformerConfig(PretrainedConfig):
 
-    model_type = 'forgetting_transformer'
+    model_type = 'forgetting_transformer-project_fox'
     keys_to_ignore_at_inference = ['past_key_values']
 
     def __init__(
