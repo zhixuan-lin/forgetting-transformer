@@ -238,7 +238,11 @@ print(model)
 
 For reproducibility and research purposes, we provide model checkpoints for our main experiments. These are 760M-parameter-scale models trained on 48B tokens from [LongCrawl64](https://manifestai.com/articles/longcrawl64/) with a training context length of 16k tokens. 
 
-Note that these are small models trained on a small number of tokens.  Also, as a long-context dataset for research purposes, LongCrawl64 is **not** designed for optimal downstream task performance (it also has a strange tokenization process, see [here](https://github.com/zhixuan-lin/forgetting-transformer/blob/main/src/forgetting_transformer/tokenizer.py#L28)). Therefore, these model are only suitable for research purposes (e.g., inspecting forget gate values). Also, if you want to compare FoX with other models trained in another setting with another dataset, **you should definitely train FoX on your own dataset under your own setting for the comparison**.
+Note that these are small models trained on a small number of tokens.  Also, as a
+long-context dataset for research purposes, LongCrawl64 is **not** designed for optimal
+downstream task performance (it also has a strange tokenization process, see
+[here](https://github.com/zhixuan-lin/forgetting-transformer/blob/main/src/forgetting_transformer/tokenizer.py#L28)).
+Therefore, these models are only suitable for research purposes (e.g., inspecting forget gate values). Also, if you want to compare FoX with other models trained in another setting with another dataset, **you should definitely train FoX on your own dataset under your own setting for the comparison**.
 
 These checkpoints can be downloaded from [this HuggingFace collection](https://huggingface.co/collections/zhixuan-lin/forgetting-transformer-paper-checkpoints-67d0ded3caa418ff0cc16ba4). Here is a usage example:
 
@@ -304,7 +308,7 @@ $DATA_DIR
 
 ### Training
 
-We provide training configurations for all the baselines for the main 760M-param/48B-token setting in `configs`. We also provide additional configurations for the 760M-param/16B-token, 360M-param/7.5B-token, and, 125M-param/2.7B-token settinsg used for our analysis experiments. For example, to train a 760M-param FoX (Pro) on 48B tokens from LongCrawl64, you can run the following:
+We provide training configurations for all the baselines for the main 760M-param/48B-token setting in `configs/experiments/longcrawl64`. We also provide additional configurations for the 760M-param/16B-token, 360M-param/7.5B-token, and, 125M-param/2.7B-token settinsg used for our analysis experiments. For example, to train a 760M-param FoX (Pro) on 48B tokens from LongCrawl64, you can run the following:
 
 ```bash
 OUTPUT_DIR="./output/model/fox_pro_760m_48b"  # You can set this to any other path
