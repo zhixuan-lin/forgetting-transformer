@@ -13,6 +13,7 @@ Python 3.10 or above is recommended.
 If you just want to use the Forgetting Attention kernel and the FoX model, you can install this repository as a regular Python package:
 
 ```bash
+# We recommend you keep track of the commit hash you used. We may introduce breaking changes in the future.
 # First uninstall to prevent potential issues
 pip uninstall forgetting_transformer && pip install -U git+https://github.com/zhixuan-lin/forgetting-transformer
 ```
@@ -24,8 +25,6 @@ git clone git@github.com:zhixuan-lin/forgetting-transformer.git
 cd forgetting-transformer
 pip install --editable .
 ```
-
-For the first installation method we recommend you keep track of the commit hash you used. We may introduce breaking changes in the future.
 
 Note that both installation methods DO NOT install any dependencies by default. The needed dependencies depend on what you want to use and will be explained below.
 
@@ -234,9 +233,129 @@ print(model)
 
 ```
 
+
+## Model Checkpoints
+
+For reproducibility and research purposes, we provide model checkpoints for our main experiments. These are 760M-parameter-scale models trained on 48B tokens from [LongCrawl64](https://manifestai.com/articles/longcrawl64/) with a training context length of 16k tokens. 
+
+Note that these are small models trained on a small number of tokens.  LongCrawl64 is **not** designed for optimal downstream task performance (it also has a strange tokenization process, see [here](https://github.com/zhixuan-lin/forgetting-transformer/blob/main/src/forgetting_transformer/tokenizer.py#L28)). Therefore, these model are only suitable for research purposes (e.g., inspecting forget gate values). Also, if you want to compare FoX with other models trained in another setting with another dataset, **you should definitely train FoX on your own dataset under your own setting for the comparison**.
+
+These checkpoints can be downloaded from [this HuggingFace collection](https://huggingface.co/collections/zhixuan-lin/forgetting-transformer-paper-checkpoints-67d0ded3caa418ff0cc16ba4). Here is a usage example:
+
+```python
+import forgetting_transformer.model  # Needed to register the model classes
+import forgetting_transformer.tokenizer  # Needed to register the tokenizer class
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model = AutoModelForCausalLM.from_pretrained("zhixuan-lin/fox-pro-760m-longcrawl64-48b")
+tokenizer = AutoTokenizer.from_pretrained("zhixuan-lin/fox-pro-760m-longcrawl64-48b", add_bos_token=True, clean_up_tokenization_spaces=False)
+
+prompt = "The best thing to do in San Francisco is"
+model = model.cuda()
+encoded = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+    output = model.generate(
+        encoded,
+        max_new_tokens=30,
+    )[0]
+pred = tokenizer.decode(output, skip_special_tokens=True)
+print(pred)
+```
+
+
+
 ## Training and Evaluation
 
-Work in progress. This will be updated soon.
+### Dependencies
+
+First, make sure you've done an editable installaltion of this repository if you haven't:
+
+```bash
+git clone git@github.com:zhixuan-lin/forgetting-transformer.git
+cd forgetting-transformer
+pip install --editable .
+```
+
+Then install the rest of the dependencies:
+
+```bash
+pip install -r requirements-dev.txt
+pip install --no-deps --force-reinstall git+https://github.com/sustcsonglin/flash-linear-attention.git@1c5937eeeb8b0aa17bed5ee6dae345b353196bd4
+```
+
+### Data Preparation
+
+We provide code for training on [LongCrawl64](https://manifestai.com/articles/longcrawl64/). First, download the dataset using `gsutil` (the downloading instructions are from the [LongCrawl64](https://manifestai.com/articles/longcrawl64/) website):
+
+```bash
+DATA_DIR="./data"  # You can use any other path
+mkdir -p ${DATA_DIR}/longcrawl64
+GSUTIL_PARALLEL_THREAD_COUNT=5 GSUTIL_PARALLEL_PROCESS_COUNT=5 gsutil -m cp -r 'gs://longcrawl64/*.zarr' ${DATA_DIR}/longcrawl64
+```
+
+The dataset is around 800GB so it will take a while. Make sure the directory structure looks like this after the download:
+
+```
+$DATA_DIR
+└── longcrawl64
+    ├── heldout.zarr
+    └── train.zarr
+```
+
+### Training
+
+We provide training configurations for all the baselines for the main 760M-param/48B-token setting in `configs`. We also provide additional configurations for the 760M-param/16B-token, 360M-param/7.5B-token, and, 125M-param/2.7B-token settinsg used for our analysis experiments. For example, to train a 760M-param FoX (Pro) on 48B tokens from LongCrawl64, you can run the following:
+
+```bash
+OUTPUT_DIR="./output/model/fox_pro_760m_48b"  # You can set this to any other path
+WANDB_DIR="./output/wandb"  # You can set this to any other path
+mkdir -p $OUTPUT_DIR
+mkdir -p $WANDB_DIR
+fabric run train.py \
+    --devices 4 \
+    --num-nodes 1 \
+    --node-rank 0 \
+    --main-address localhost \
+    --main-port 1234 \
+    +experiment/longcrawl64/forgetting_transformer=pro_760m_48b \
+    seed=0 \
+    exp=demo \
+    tag=fox_pro_760m_48b \
+    output_dir=$OUTPUT_DIR \
+    data_dir=$DATA_DIR \
+    wandb.log_dir=$WANDB_DIR \
+    wandb.mode=online \
+    resume=true
+```
+
+The above is for single-node training with 4 GPUs. For multi-node training you need to set `--num-nodes`, `--node-rank`, `--main-address`, and `--main-port` properly and launch the `fabric run` command on every node. Please refer to the [lightning fabric CLI documentation](https://lightning.ai/docs/fabric/stable/fundamentals/launch.html#launch-with-the-cli) for instructions on how to set these flags for multi-node training.
+
+Checkpoints will be saved to `$OUTPUT_DIR` periodically. We support resuming interrupted training runs with `resume=true` (the default). Setting `resume=false` would cause existing contents in `$OUTPUT_DIR` to be removed before training starts.
+
+### Saving the model in Hugging Face Format
+
+For evaluation we require models to be save in Hugging Face format. After training is finished, you can save the trained model in HuggingFace format using `save_model.py`:
+
+```bash
+HF_LOAD_DIR=$OUTPUT_DIR
+HF_SAVE_DIR="./output/hf/fox-pro-760m-48b"
+mkdir -p $HF_LOAD_DIR
+python save_model.py \
+    --hf_save_dir=$HF_SAVE_DIR \
+    --hf_load_dir=$HF_LOAD_DIR
+```
+
+This saves the model to `$HF_SAVE_DIR`. After you save the model, you can load the saved model as follows:
+
+```python
+import forgetting_transformer.model  # Needed to register the model classes
+from transformers import AutoModelForCausalLM
+model = AutoModelForCausalLM.from_pretrain("./output/hf/fox-pro-760m-48b")
+```
+
+### Evaluation
+
+This will be updated soon.
 
 ## Acknowledgements
 

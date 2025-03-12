@@ -11,6 +11,7 @@ notebooks/
 wandb/
 cache_dir/
 raw_datasets/
+local_scripts/
 
 .DS_Store
 
