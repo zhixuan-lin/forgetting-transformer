@@ -28,7 +28,7 @@ pip install --editable .
 
 Note that both installation methods DO NOT install any dependencies by default. The needed dependencies depend on what you want to use and will be explained below.
 
-### The Forgetting Attention kernel
+### The Forgetting Attention Kernel
 
 If you only want to use the Forgetting Attention kernel (e.g., as a replacement for the FlashAttention kernel), you need to install the following (we pin the versions to ensure that this works; you don't have to):
 
@@ -286,7 +286,7 @@ cd forgetting-transformer
 pip install --editable .
 ```
 
-Then install the rest of the dependencies:
+Then install the rest of the dependencies for training and evaluation:
 
 ```bash
 pip install -r requirements-dev.txt
@@ -344,17 +344,17 @@ The above is for single-node training with 4 GPUs. For multi-node training you n
 
 Checkpoints will be saved to `$OUTPUT_DIR` periodically. We support resuming interrupted training runs with `resume=true` (the default). Setting `resume=false` would cause existing contents in `$OUTPUT_DIR` to be removed before training starts.
 
-### Saving the model in Hugging Face Format
+### Saving the Model in Hugging Face Format
 
 For evaluation we require models to be saved in Hugging Face format. After training is finished, you can save the trained model in HuggingFace format using `save_model.py`:
 
 ```bash
 HF_LOAD_DIR=$OUTPUT_DIR
 HF_SAVE_DIR="./output/hf/fox-pro-760m-48b"
-mkdir -p $HF_LOAD_DIR
+mkdir -p $HF_SAVE_DIR
 python save_model.py \
-    --hf_save_dir=$HF_SAVE_DIR \
-    --hf_load_dir=$HF_LOAD_DIR
+    --hf_load_dir=$HF_LOAD_DIR \
+    --hf_save_dir=$HF_SAVE_DIR
 ```
 
 This saves the model to `$HF_SAVE_DIR`. After you save the model, you can load the saved model as follows:
