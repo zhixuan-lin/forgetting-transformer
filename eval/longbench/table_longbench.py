@@ -112,11 +112,11 @@ if __name__ == "__main__":
     MODEL_TO_LABEL = {
         "fox-pro-760m-longcrawl64-48b": "FoX (Pro)",
         "fox-llama-760m-longcrawl64-48b": "FoX (LLaMA)",
-        "transformer-pro-760m-longcrawl64-48b:": "Transformer (Pro)",
+        "transformer-pro-760m-longcrawl64-48b": "Transformer (Pro)",
         "transformer-llama-760m-longcrawl64-48b": "Transformer (LLaMA)",
         "mamba2-760m-longcrawl64-48b": "Mamba-2",
-        "delta_net-760m-longcrawl64-48b": "DeltaNet",
         "hgrn2-760m-longcrawl64-48b": "HGRN2",
+        "delta_net-760m-longcrawl64-48b": "DeltaNet",
     }
 
     TASK_LIST = [
