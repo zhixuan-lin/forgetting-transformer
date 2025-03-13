@@ -136,9 +136,9 @@ if __name__ == "__main__":
     RESULT_DIR = Path(args.result_dir)
 
     MODELS = [
-        # "fox-pro-760m-longcrawl64-48b",
+        "fox-pro-760m-longcrawl64-48b",
         # "transformer-pro-760m-longcrawl64-48b",
-        "fox-llama-760m-longcrawl64-48b",
+        # "fox-llama-760m-longcrawl64-48b",
         # "transformer-llama-760m-longcrawl64-48b",
         # "mamba2-760m-longcrawl64-48b",
         # "hgrn2-760m-longcrawl64-48b",
