@@ -108,6 +108,10 @@ assert out.size() == (batch_size, seqlen, num_heads, head_dim)
 
 ### FoX Time-Mixing Layer and Model
 
+
+**WARNING**: we only support attention mask that implements left padding. Right padding would lead to incorrect results.
+
+
 If you want to use the FoX time-mixing layer or the whole model, you need the following dependencies (again versions are pinned just in case):
 
 ```bash
@@ -232,6 +236,7 @@ print(model)
 # )
 
 ```
+
 
 
 ## Model Checkpoints
@@ -368,7 +373,7 @@ In `eval/`, we provide code for the following evaluation that we use in the pape
 * Short-context downstream tasks from [Language Evaluation Harness](https://github.com/EleutherAI/lm-evaluation-harness)
 * Long-context downstream tasks from [LongBench](https://github.com/THUDM/LongBench/)
 
-Before you run evaluation make sure you've save the model in Hugging Face format using `save_model.py`. You could also use our provided checkpoints to run the evaluation. Please see the `README.md` file in each subdirectories of `eval/` for instructions.
+Before you run evaluation make sure you've saved the model in Hugging Face format using `save_model.py`. You could also use our provided checkpoints to run the evaluation. Please see the `README.md` file in each subdirectories of `eval/` for instructions.
 
 ## Acknowledgements
 
