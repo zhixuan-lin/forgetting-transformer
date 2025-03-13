@@ -99,20 +99,20 @@ if __name__ == "__main__":
     MODEL_TO_LABEL = {
         "fox-pro-760m-longcrawl64-48b": "FoX (Pro)",
         "fox-llama-760m-longcrawl64-48b": "FoX (LLaMA)",
-        "transformer-pro-760m-longcrawl64-48b:": "Transformer (Pro)",
+        "transformer-pro-760m-longcrawl64-48b": "Transformer (Pro)",
         "transformer-llama-760m-longcrawl64-48b": "Transformer (LLaMA)",
         "mamba2-760m-longcrawl64-48b": "Mamba-2",
-        "delta_net-760m-longcrawl64-48b": "DeltaNet",
         "hgrn2-760m-longcrawl64-48b": "HGRN2",
+        "delta_net-760m-longcrawl64-48b": "DeltaNet",
     }
     MODEL_TO_COLOR = {
         "fox-pro-760m-longcrawl64-48b": "C0",
-        "fox-llama-760m-longcrawl64-48b": "C1",
-        "transformer-pro-760m-longcrawl64-48b:": "C2",
+        "transformer-pro-760m-longcrawl64-48b": "C1",
+        "fox-llama-760m-longcrawl64-48b": "C2",
         "transformer-llama-760m-longcrawl64-48b": "C3",
         "mamba2-760m-longcrawl64-48b": "C4",
-        "delta_net-760m-longcrawl64-48b": "C8",
-        "hgrn2-760m-longcrawl64-48b": "C9",
+        "hgrn2-760m-longcrawl64-48b": "C8",
+        "delta_net-760m-longcrawl64-48b": "C9",
     }
 
     plot_data = {}
