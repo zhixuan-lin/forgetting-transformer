@@ -35,6 +35,8 @@ python plot_niah.py --figure_dir=$FIGURE_DIR
 
 You can change `MODEL_LIST` in `plot_niah.py` to specify the set of models for which you want to visualize results.
 
+Note that we observe the evaluation results to be non-deterministic, likely due to GPU non-determinism. Therefore the results you obtain may not exactly match those reported in the paper. However, the difference should be small.
+
 ## Citation
 
 If you use this code, consider citing LongAlign:

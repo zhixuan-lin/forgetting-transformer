@@ -65,7 +65,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--figure_dir", type=str, required=True)
     args = parser.parse_args()
-    EXP_LIST = ["easy_max_len_32k", "standard_max_len_32k"]
+    EXP_LIST = ["max_len_32k_easy", "max_len_32k_standard"]
     # EXP_LIST = ["debug"]
     MODEL_LIST = [
         "fox-pro-760m-longcrawl64-48b",
