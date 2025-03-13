@@ -6,6 +6,8 @@ colorlog
 rich
 wandb
 jsonlines
+matplotlib
+seaborn
 hydra-core==1.3.2
 torch==2.4.0
 click==8.1.7  # Needed for lightning CLI

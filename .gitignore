@@ -5,7 +5,9 @@ output/
 results/
 debug/
 logs/
+pred/
 notebooks/
+figures/
 .psync
 # hyena_S5 specific stuff
 wandb/
