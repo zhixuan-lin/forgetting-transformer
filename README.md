@@ -18,7 +18,7 @@ If you just want to use the Forgetting Attention kernel and the FoX model, you c
 pip uninstall forgetting_transformer && pip install -U git+https://github.com/zhixuan-lin/forgetting-transformer
 ```
 
-If you want to run the training code or modify the code, it is best to clone this repository and do an [editable install](https://setuptools.pypa.io/en/latest/userguide/development_mode.html):
+If you want to do training/evaluation or modify the code, you need to clone this repository and do an [editable install](https://setuptools.pypa.io/en/latest/userguide/development_mode.html):
 
 ```bash
 git clone git@github.com:zhixuan-lin/forgetting-transformer.git
@@ -54,7 +54,10 @@ def forgetting_attention(
     """
     A FlashAttention-based implementation of Forgetting Attention. 
 
-    For now:
+    Note:
+    - We recommand bfloat16/float16 for q, k, v and float32 for log_fgate. float32 for 
+      q, k, v is also supported, but the kernel will not use tensor cores if q, k, v are
+      in float32 (which would be slow).
     - We only support seqlen_q <= seqlen_k
     - We only support causal attention
     - Head dimension must be in one of {16, 32, 64, 128}
@@ -65,7 +68,7 @@ def forgetting_attention(
         - v: (batch_size, seqlen_k, num_heads, head_dim) unless head_first=True.
         - log_fgate: (batch_size, seqlen_k, num_heads) unless head_first=True. 
               This should be the **log** of the forget gates. This is typically the 
-              output of torch.nn.functional.logsigmoid.
+              output of torch.nn.functional.log_sigmoid.
         - head_first: if True, the order the num_heads and seqlen_* axis of the all 
               FloatTensor inputs and outputs should be (num_heads, seq_len_*) instead of
               (seq_len_*, num_heads)
@@ -90,20 +93,25 @@ from forgetting_transformer import forgetting_attention
 
 batch_size = 4
 num_heads = 12
-seqlen = 512
+seq_len = 512
 head_dim = 64
 dtype = torch.bfloat16
 device = "cuda"
 
-q = torch.randn((batch_size, seqlen, num_heads, head_dim), dtype=dtype, device=device, requires_grad=True)
-k = torch.randn((batch_size, seqlen, num_heads, head_dim), dtype=dtype, device=device, requires_grad=True)
-v = torch.randn((batch_size, seqlen, num_heads, head_dim), dtype=dtype, device=device, requires_grad=True)
-# You can use a tiny linear layer to get fgate_logit
-fgate_logit = torch.randn((batch_size, seqlen, num_heads), dtype=torch.float32, device=device)
+q = torch.randn((batch_size, seq_len, num_heads, head_dim), dtype=dtype, device=device, requires_grad=True)
+k = torch.randn((batch_size, seq_len, num_heads, head_dim), dtype=dtype, device=device, requires_grad=True)
+v = torch.randn((batch_size, seq_len, num_heads, head_dim), dtype=dtype, device=device, requires_grad=True)
+# You can use a tiny linear layer to get `fgate_logit`.
+# For example, let `x` be the attention input with shape (batch_size, seq_len, hidden_size) 
+# which is also used to compute `q`, `k` and `v`. You can get `fgate_logit` as follows
+#     In your model's `__init__`: `self.fgate_proj = nn.Linear(hidden_size, num_heads, bias=True)`
+#     In your model's `forward`:  `fgate_logit = self.fgate_proj(x)`
+fgate_logit = torch.randn((batch_size, seq_len, num_heads), dtype=dtype, device=device, requires_grad=True)
 log_fgate = torch.nn.functional.logsigmoid(fgate_logit.float())
 
 out = forgetting_attention(q, k, v, log_fgate)
-assert out.size() == (batch_size, seqlen, num_heads, head_dim)
+assert out.size() == (batch_size, seq_len, num_heads, head_dim)
+out.sum().backward()
 ```
 
 ### FoX Time-Mixing Layer and Model
@@ -129,11 +137,11 @@ import torch
 from forgetting_transformer.model import ForgettingAttentionLayer
 
 batch_size = 4
-seqlen = 512
+seq_len = 512
 hidden_size = 1536
 dtype = torch.float32
 device = "cuda"
-x = torch.randn((batch_size, seqlen, hidden_size), dtype=dtype, device=device, requires_grad=True)
+x = torch.randn((batch_size, seq_len, hidden_size), dtype=dtype, device=device, requires_grad=True)
 
 # Configuration for the 760M FoX (Pro) model
 layer = ForgettingAttentionLayer(
@@ -147,7 +155,7 @@ layer = ForgettingAttentionLayer(
 ).to(device)
 
 out, *rest = layer(x)
-assert out.size() == (batch_size, seqlen, hidden_size)
+assert out.size() == (batch_size, seq_len, hidden_size)
 print(layer)
 # ForgettingAttentionLayer(
 #   (q_proj): Linear(in_features=1536, out_features=1536, bias=False)
@@ -170,7 +178,7 @@ from forgetting_transformer.model import ForgettingTransformerConfig, Forgetting
 
 
 batch_size = 4
-seqlen = 512
+seq_len = 512
 hidden_size = 1536
 vocab_size = 32768
 bos_token_id = 0
@@ -191,16 +199,16 @@ config = ForgettingTransformerConfig(
 )
 model = ForgettingTransformerForCausalLM(config).to(device)
 
-labels = torch.randint(0, vocab_size, size=(batch_size, seqlen), device=device)
+labels = torch.randint(0, vocab_size, size=(batch_size, seq_len), device=device)
 input_ids = torch.roll(labels, shifts=1, dims=-1)
 input_ids[:, 0] = bos_token_id
 out = model(input_ids=input_ids, labels=labels)
-assert out.loss.size() == (batch_size, seqlen)
+assert out.loss.size() == (batch_size, seq_len)
 # Logits are not returned (to save memory) if labels are given
 assert out.logits is None
 # To get logits don't provide labels
 out = model(input_ids=input_ids)
-assert out.logits.size() == (batch_size, seqlen, vocab_size)
+assert out.logits.size() == (batch_size, seq_len, vocab_size)
 
 
 print(model)
@@ -246,7 +254,7 @@ For reproducibility and research purposes, we provide model checkpoints for our 
 Note that these are small models trained on a small number of tokens.  Also, as a
 long-context dataset for research purposes, LongCrawl64 is **not** designed for optimal
 downstream task performance (it also has a strange tokenization process, see
-[here](https://github.com/zhixuan-lin/forgetting-transformer/blob/main/src/forgetting_transformer/tokenizer.py#L28)).
+[here](https://github.com/zhixuan-lin/forgetting-transformer/blob/main/src/forgetting_transformer/tokenizer.py)).
 Therefore, these models are only suitable for research purposes (e.g., inspecting forget gate values). Also, if you want to compare FoX with other models trained in another setting with another dataset, **you should definitely train FoX on your own dataset under your own setting for the comparison**.
 
 These checkpoints can be downloaded from [this HuggingFace collection](https://huggingface.co/collections/zhixuan-lin/forgetting-transformer-paper-checkpoints-67d0ded3caa418ff0cc16ba4). Here is a usage example:

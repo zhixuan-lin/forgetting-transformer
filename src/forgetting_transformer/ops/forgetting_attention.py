@@ -226,7 +226,10 @@ def forgetting_attention(
     """
     A FlashAttention-based implementation of Forgetting Attention. 
 
-    For now:
+    Note:
+    - We recommand bfloat16/float16 for q, k, v and float32 for log_fgate. float32 for 
+      q, k, v is also supported, but the kernel will not use tensor cores if q, k, v are
+      in float32 (which would be slow).
     - We only support seqlen_q <= seqlen_k
     - We only support causal attention
     - Head dimension must be in one of {16, 32, 64, 128}
