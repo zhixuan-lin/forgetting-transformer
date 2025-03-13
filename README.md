@@ -341,7 +341,7 @@ Checkpoints will be saved to `$OUTPUT_DIR` periodically. We support resuming int
 
 ### Saving the model in Hugging Face Format
 
-For evaluation we require models to be save in Hugging Face format. After training is finished, you can save the trained model in HuggingFace format using `save_model.py`:
+For evaluation we require models to be saved in Hugging Face format. After training is finished, you can save the trained model in HuggingFace format using `save_model.py`:
 
 ```bash
 HF_LOAD_DIR=$OUTPUT_DIR
@@ -368,7 +368,7 @@ In `eval/`, we provide code for the following evaluation that we use in the pape
 * Short-context downstream tasks from [Language Evaluation Harness](https://github.com/EleutherAI/lm-evaluation-harness)
 * Long-context downstream tasks from [LongBench](https://github.com/THUDM/LongBench/)
 
-Please see the `README.md` file in each subdirectories of `eval/` for instructions.
+Before you run evaluation make sure you've save the model in Hugging Face format using `save_model.py`. You could also use our provided checkpoints to run the evaluation. Please see the `README.md` file in each subdirectories of `eval/` for instructions.
 
 ## Acknowledgements
 
