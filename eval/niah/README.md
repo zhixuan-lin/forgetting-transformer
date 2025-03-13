@@ -1,4 +1,4 @@
-# Needle-in-the-Haystack Evaluation
+# Needle-in-a-Haystack Evaluation
 
 
 This directory contains the code for the needle in the haystack experiments in the paper. The code is adapted from [the needle test in LongAlign](https://github.com/THUDM/LongAlign/tree/main/Needle_test).
