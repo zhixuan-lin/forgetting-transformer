@@ -121,8 +121,8 @@ if __name__ == "__main__":
         # path_list = sorted(model_dir.glob("*.pt"))
         # path = path_list[-1]
         # with path.open("rb") as f:
-            # state = torch.load(f, map_location="cpu")
-        # loss_per_token = state["total_loss"] / state["seq_count"]
+        #     state = torch.load(f, map_location="cpu")
+        # loss_per_token = (state["total_loss"] / state["seq_count"]).numpy()
 
         path_list = sorted(model_dir.glob("*.npz"))
         assert len(path_list) == 1, model_dir
