@@ -224,7 +224,7 @@ def forgetting_attention(
     sm_scale: Optional[float] = None,
 ):
     """
-    An FlashAttention-based implementation of Forgetting Attention. 
+    A FlashAttention-based implementation of Forgetting Attention. 
 
     For now:
     - We only support seqlen_q <= seqlen_k

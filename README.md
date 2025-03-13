@@ -52,7 +52,7 @@ def forgetting_attention(
     sm_scale: Optional[float] = None,
 ):
     """
-    An FlashAttention-based implementation of Forgetting Attention. 
+    A FlashAttention-based implementation of Forgetting Attention. 
 
     For now:
     - We only support seqlen_q <= seqlen_k
@@ -364,8 +364,8 @@ model = AutoModelForCausalLM.from_pretrain("./output/hf/fox-pro-760m-48b")
 In `eval/`, we provide code for the following evaluation that we use in the paper: 
 * Per-token loss
 * Needle-in-a-haystack retrieval task
-* Short-context downstream tasks from [Language Evaluation Harness](https://github.com/EleutherAI/lm-evaluation-harness).
-* Long-context downstream tasks from [LongBench](https://github.com/THUDM/LongBench/).
+* Short-context downstream tasks from [Language Evaluation Harness](https://github.com/EleutherAI/lm-evaluation-harness)
+* Long-context downstream tasks from [LongBench](https://github.com/THUDM/LongBench/)
 
 Please see the `README.md` file in each subdirectories of `eval/` for instructions.
 
