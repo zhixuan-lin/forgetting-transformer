@@ -250,6 +250,7 @@ These checkpoints can be downloaded from [this HuggingFace collection](https://h
 import forgetting_transformer.model  # Needed to register the model classes
 import forgetting_transformer.tokenizer  # Needed to register the tokenizer class
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
 model = AutoModelForCausalLM.from_pretrained("zhixuan-lin/fox-pro-760m-longcrawl64-48b")
 tokenizer = AutoTokenizer.from_pretrained("zhixuan-lin/fox-pro-760m-longcrawl64-48b", add_bos_token=True, clean_up_tokenization_spaces=False)
