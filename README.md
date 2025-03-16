@@ -117,7 +117,10 @@ out.sum().backward()
 ### FoX Time-Mixing Layer and Model
 
 
-**WARNING: we only support `attention_mask` that implements left padding. Passing `attention_mask` that implements right padding to the model would lead to incorrect results.**
+**WARNINGS**: 
+1. We only support `attention_mask` that implements left padding. Passing `attention_mask` that implements right padding to the model would lead to incorrect results.
+2. Decoding with `attention_mask` set is not currently supported. We may fix this in the future.
+
 
 
 If you want to use the FoX time-mixing layer or the whole model, you need the following dependencies (again versions are pinned just in case):
