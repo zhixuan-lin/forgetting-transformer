@@ -4,7 +4,7 @@ Official PyTorch implementation of [Forgetting Transformer: Softmax Attention wi
 
 This repository contains the implementation of the Forgetting Attention and the Forgetting Transformer (FoX). In particular, we provide an efficient Triton implementation of the Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel. 
 
-(WIP) We will also provide training and evaluation code to reproduce the results in the paper, including all the baselines.
+We will also provide training and evaluation code to reproduce the results in the paper, including all the baselines.
 
 ## Installation and Quickstart
 
