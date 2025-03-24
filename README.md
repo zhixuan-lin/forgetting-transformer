@@ -4,7 +4,7 @@ Official PyTorch implementation of [Forgetting Transformer: Softmax Attention wi
 
 This repository contains the implementation of the Forgetting Attention and the Forgetting Transformer (FoX). In particular, we provide an efficient Triton implementation of the Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel. 
 
-We will also provide training and evaluation code to reproduce the results in the paper, including all the baselines.
+We also provide training and evaluation code to reproduce the results in the paper, including all the baselines.
 
 ## Installation and Quickstart
 
@@ -323,6 +323,16 @@ $DATA_DIR
 └── longcrawl64
     ├── heldout.zarr
     └── train.zarr
+```
+
+If you just want to run evaluation with our checkpoints, you can only download the validation set (5.9GB):
+
+```bash
+DATA_DIR="./data"  # You can use any other path
+mkdir -p ${DATA_DIR}/longcrawl64
+# Install gsutil
+curl https://sdk.cloud.google.com | bash
+GSUTIL_PARALLEL_THREAD_COUNT=5 GSUTIL_PARALLEL_PROCESS_COUNT=5 gsutil -m cp -r 'gs://longcrawl64/heldout.zarr' ${DATA_DIR}/longcrawl64
 ```
 
 ### Training

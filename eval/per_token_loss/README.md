@@ -1,8 +1,22 @@
 # Per-token loss
 
-This directory contains code to compute and plot per-token loss using LongCrawl64. In the following `$DATA_DIR` should be set to the path containing the `longcrawl64` dataset. Example usage:
+This directory contains code to compute and plot per-token loss using LongCrawl64. 
+
+Before you run the evaluation, make sure you have downloaded the heldout set of LongCrawl64. If you haven't, run the following:
 
 ```bash
+DATA_DIR="./data"  # You can use any other path
+mkdir -p ${DATA_DIR}/longcrawl64
+# Install gsutil
+curl https://sdk.cloud.google.com | bash
+GSUTIL_PARALLEL_THREAD_COUNT=5 GSUTIL_PARALLEL_PROCESS_COUNT=5 gsutil -m cp -r 'gs://longcrawl64/heldout.zarr' ${DATA_DIR}/longcrawl64
+```
+
+
+After this you can run the evaluation as follows:
+
+```bash
+DATA_DIR="./data"  # Or whatever path that contains the LongCrawl64 dataset
 SAVE_DIR="./results"  # You can use any other path
 fabric run run_per_token_loss.py \
    --devices 1 \
