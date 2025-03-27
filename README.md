@@ -337,7 +337,7 @@ GSUTIL_PARALLEL_THREAD_COUNT=5 GSUTIL_PARALLEL_PROCESS_COUNT=5 gsutil -m cp -r '
 
 ### Training
 
-We provide training configurations for all the baselines for the main 760M-param/48B-token setting in `configs/experiments/longcrawl64`. We also provide additional configurations for the 760M-param/16B-token, 360M-param/7.5B-token, and, 125M-param/2.7B-token settinsg used for our analysis experiments. For example, to train a 760M-param FoX (Pro) on 48B tokens from LongCrawl64, you can run the following:
+We provide training configurations for all the baselines for the main 760M-param/48B-token setting in `configs/experiments/longcrawl64`. We also provide additional configurations for the 760M-param/16B-token, 360M-param/7.5B-token, and 125M-param/2.7B-token settings used for our analysis experiments. For example, to train a 760M-param FoX (Pro) on 48B tokens from LongCrawl64, you can run the following:
 
 ```bash
 OUTPUT_DIR="./output/model/fox_pro_760m_48b"  # You can set this to any other path
