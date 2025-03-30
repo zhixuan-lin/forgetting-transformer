@@ -2,7 +2,7 @@
 
 Official PyTorch implementation of [Forgetting Transformer: Softmax Attention with a Forget Gate](https://openreview.net/forum?id=q2Lnyegkr8) (ICLR 2025).
 
-This repository contains the implementation of Forgetting Attention and the Forgetting Transformer (FoX). In particular, we provide an efficient Triton implementation of Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel. 
+This repository contains the implementation of Forgetting Attention and the Forgetting Transformer (FoX). In particular, we provide an efficient Triton kernel of Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel. 
 
 We also provide training and evaluation code to reproduce the results in the paper, including all the baselines.
 
@@ -10,7 +10,7 @@ We also provide training and evaluation code to reproduce the results in the pap
 
 Python 3.10 or above is recommended.
 
-If you just want to use the Forgetting Attention kernel and the FoX model, you can install this repository as a regular Python package:
+If you just want to use the Forgetting Attention kernel and the FoX layer/model, you can install this repository as a regular Python package:
 
 ```bash
 # We recommend you keep track of the commit hash you used. We may introduce breaking changes in the future.
@@ -34,7 +34,7 @@ If you only want to use the Forgetting Attention kernel (e.g., as a replacement 
 
 ```bash
 pip install pytest einops numpy
-pip install torch==2.4.0
+pip install torch==2.4.0  # This also installs triton==3.0.0
 ```
 
 The documentation for `forgetting_attention` is as follows:
@@ -119,11 +119,11 @@ out.sum().backward()
 
 **WARNINGS**: 
 1. We only support `attention_mask` that implements left padding. Passing `attention_mask` that implements right padding to the model would lead to incorrect results.
-2. Decoding with `attention_mask` set is not currently supported. We may fix this in the future.
+2. Decoding with `attention_mask` is supported but has not been thoroughly tested. If it is necessary to use `attention_mask` during decoding, we recommend you test this functionality and make sure it works for your use case.
 
 
 
-If you want to use the FoX time-mixing layer or the whole model, you need the following dependencies (again versions are pinned just in case):
+If you want to use the FoX time-mixing layer or the complete FoX model, you need the following dependencies (again versions are pinned just in case):
 
 ```bash
 pip install pytest einops numpy
@@ -133,7 +133,7 @@ pip install transformers==4.44.0
 pip install --no-deps --force-reinstall git+https://github.com/sustcsonglin/flash-linear-attention.git@1c5937eeeb8b0aa17bed5ee6dae345b353196bd4
 ```
 
-Usage example for the time-mixing layer `ForgettingAttentionLayer`:
+Usage example for the FoX time-mixing layer `ForgettingAttentionLayer`:
 
 ```python
 import torch
@@ -173,7 +173,7 @@ print(layer)
 # )
 ```
 
-Usage example for the (complete) model `ForgettingTransformerForCausalLM`:
+Usage example for the complete FoX model `ForgettingTransformerForCausalLM`:
 
 ```python
 import torch
@@ -271,6 +271,7 @@ import torch
 model = AutoModelForCausalLM.from_pretrained("zhixuan-lin/fox-pro-760m-longcrawl64-48b")
 tokenizer = AutoTokenizer.from_pretrained("zhixuan-lin/fox-pro-760m-longcrawl64-48b", add_bos_token=True, clean_up_tokenization_spaces=False)
 
+# Generation using HF api
 prompt = "The best thing to do in San Francisco is"
 model = model.cuda()
 encoded = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
@@ -281,6 +282,19 @@ with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
     )[0]
 pred = tokenizer.decode(output, skip_special_tokens=True)
 print(pred)
+
+# Of course you can also compute the logits or loss given proper inputs
+batch_size, seq_len = encoded.shape
+labels = encoded
+input_ids = torch.roll(labels, shifts=1, dims=-1)
+input_ids[:, 0] = tokenizer.bos_token_id  # 50256
+out = model(input_ids=input_ids, labels=labels)
+assert out.loss.size() == (batch_size, seq_len)
+# Logits are not returned (to save memory) if labels are given
+assert out.logits is None
+# To get logits don't provide labels
+out = model(input_ids=input_ids)
+assert out.logits.size() == (batch_size, seq_len, tokenizer.vocab_size)
 ```
 
 

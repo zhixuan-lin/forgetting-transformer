@@ -111,7 +111,7 @@ class Attention(nn.Module):
 
             if attention_mask is not None:
                 # to deliminate the offsets of padding tokens
-                seqlen_offset = (seqlen_offset + attention_mask.sum(-1) - attention_mask.shape[-1]).clamp(min=0)
+                seqlen_offset = (seqlen_offset + attention_mask.sum(-1) - attention_mask.shape[-1])
                 max_seqlen = q.shape[1] + max(seqlen_offset)
 
         if self.max_position_embeddings is not None:
