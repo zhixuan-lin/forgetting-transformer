@@ -2,7 +2,7 @@
 
 Official PyTorch implementation of [Forgetting Transformer: Softmax Attention with a Forget Gate](https://openreview.net/forum?id=q2Lnyegkr8) (ICLR 2025).
 
-This repository contains the implementation of the Forgetting Attention and the Forgetting Transformer (FoX). In particular, we provide an efficient Triton implementation of the Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel. 
+This repository contains the implementation of Forgetting Attention and the Forgetting Transformer (FoX). In particular, we provide an efficient Triton implementation of Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel. 
 
 We also provide training and evaluation code to reproduce the results in the paper, including all the baselines.
 
@@ -68,7 +68,7 @@ def forgetting_attention(
         - v: (batch_size, seqlen_k, num_heads, head_dim) unless head_first=True.
         - log_fgate: (batch_size, seqlen_k, num_heads) unless head_first=True. 
               This should be the **log** of the forget gates. This is typically the 
-              output of torch.nn.functional.log_sigmoid.
+              output of torch.nn.functional.logsigmoid.
         - head_first: if True, the order the num_heads and seqlen_* axis of the all 
               FloatTensor inputs and outputs should be (num_heads, seq_len_*) instead of
               (seq_len_*, num_heads)
