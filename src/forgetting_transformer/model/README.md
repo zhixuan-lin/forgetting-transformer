@@ -1,4 +1,4 @@
-Most files in this directories are adapted from the [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention) repository.
+Most files in this directory are adapted from the [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention) repository.
 
 The original license info from the Flash Linear Attention repository:
 
