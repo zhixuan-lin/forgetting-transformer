@@ -15,7 +15,7 @@
 
 """Various schedules. 
 
-Most implementaion adapted from https://github.com/google-deepmind/optax/tree/main/optax/schedules
+Most functions are adapted from https://github.com/google-deepmind/optax/tree/main/optax/schedules. The code is modified to use numpy instead of jax.numpy.
 """
 from typing import Sequence, Callable, Optional
 import numpy as np
