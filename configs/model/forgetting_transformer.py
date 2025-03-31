@@ -39,6 +39,7 @@ class ForgettingTransformerArgConfig:
     decay_time_max: Optional[float] = None
     use_output_norm: bool = False
     qk_norm: bool = False
+    qk_norm_share_param_across_head: bool = False
 
     use_k_shift: bool = False
     use_v_shift: bool = False

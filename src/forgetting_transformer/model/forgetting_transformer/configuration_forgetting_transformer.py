@@ -43,6 +43,7 @@ class ForgettingTransformerConfig(PretrainedConfig):
         decay_time_max: Optional[float] = None,
         use_output_norm: bool = False,
         qk_norm: bool = False,
+        qk_norm_share_param_across_head: bool = False,
         use_k_shift: bool = False,
         use_v_shift: bool = False,
         **kwargs,
@@ -75,6 +76,7 @@ class ForgettingTransformerConfig(PretrainedConfig):
         self.decay_time_max = decay_time_max
         self.use_output_norm = use_output_norm
         self.qk_norm = qk_norm
+        self.qk_norm_share_param_across_head = qk_norm_share_param_across_head
         self.use_k_shift = use_k_shift
         self.use_v_shift = use_v_shift
 

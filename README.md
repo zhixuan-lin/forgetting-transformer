@@ -6,6 +6,10 @@ This repository contains the implementation of Forgetting Attention and the Forg
 
 We also provide training and evaluation code to reproduce the results in the paper, including all the baselines.
 
+## Changelog
+
+* [2025-03-31] In our paper experiments we accidentally share the RMSNorm scaling parameters across heads in the QK-norm implementation. Normally there should be a total of `num_heads * head_dim` scaling parameters but in our experiments there were only `head_dim` scaling parameters shared across the `num_heads` heads. We have verified that this has no observable impact on performance. Nevertheless, we have added a `qk_norm_share_param_across_head` argument that controls this behavior and set the default value to `False` because it makes more sense. Note that for backward compatibility, in our provided checkpoints `qk_norm_share_param_across_head` is still set to `True` (otherwise the weights cannot be loaded).
+
 ## Installation and Quickstart
 
 Python 3.10 or above is recommended.
@@ -168,8 +172,8 @@ print(layer)
 #   (fgate_proj): Linear(in_features=1536, out_features=24, bias=True)
 #   (ogate_proj): Linear(in_features=1536, out_features=1536, bias=False)
 #   (output_norm): GroupRMSNorm(24, 1536, eps=1e-06)
-#   (q_norm): RMSNorm(64, eps=1e-05)
-#   (k_norm): RMSNorm(64, eps=1e-05)
+#   (q_norm): GroupRMSNorm(24, 1536, eps=1e-05)
+#   (k_norm): GroupRMSNorm(24, 1536, eps=1e-05)
 # )
 ```
 
@@ -230,8 +234,8 @@ print(model)
 #           (fgate_proj): Linear(in_features=1536, out_features=24, bias=True)
 #           (ogate_proj): Linear(in_features=1536, out_features=1536, bias=False)
 #           (output_norm): GroupRMSNorm(24, 1536, eps=1e-06)
-#           (q_norm): RMSNorm(64, eps=1e-05)
-#           (k_norm): RMSNorm(64, eps=1e-05)
+#           (q_norm): GroupRMSNorm(24, 1536, eps=1e-05)
+#           (k_norm): GroupRMSNorm(24, 1536, eps=1e-05)
 #         )
 #         (mlp_norm): RMSNorm(1536, eps=1e-06)
 #         (mlp): ForgettingTransformerMLP(

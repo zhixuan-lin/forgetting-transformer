@@ -152,6 +152,7 @@ class ForgettingAttentionLayer(nn.Module):
         use_output_norm: bool = False,
         norm_eps: float = 1e-6,
         qk_norm: bool = False,
+        qk_norm_share_param_across_head: bool = False,
         use_k_shift: bool = False,
         use_v_shift: bool = False,
         initializer_range: float = 0.02,
@@ -189,6 +190,8 @@ class ForgettingAttentionLayer(nn.Module):
             - use_output_norm: Whether to use output normalization.
             - norm_eps: Epsilon for the RMSNorms
             - qk_norm: Whether to use qk_norm
+            - qk_norm_share_param_across_head: In QK-norm, whether to share the RMSNorm
+                scaling parameters across heads. This is just for backward compatibility.
             - use_k_shift: Whether to use data-dependent key shift
             - use_v_shift: Whether to use data-dependent value shift
             - initializer_range: standard deviation for initialization
@@ -282,9 +285,15 @@ class ForgettingAttentionLayer(nn.Module):
 
 
         self.qk_norm = qk_norm
+        self.qk_norm_share_param_across_head = qk_norm_share_param_across_head
         if qk_norm:
-            self.q_norm = RMSNorm(self.head_dim)
-            self.k_norm = RMSNorm(self.head_dim)
+            if self.qk_norm_share_param_across_head:
+                # This is an incorrect implemention kept just for backward compatibility
+                self.q_norm = RMSNorm(self.head_dim)
+                self.k_norm = RMSNorm(self.head_dim)
+            else:
+                self.q_norm = GroupRMSNorm(num_groups=self.num_heads, hidden_size=self.hidden_size)
+                self.k_norm = GroupRMSNorm(num_groups=self.num_heads, hidden_size=self.hidden_size)
 
         self.initializer_range = initializer_range
         self.apply(self._initialize_weights)
@@ -326,12 +335,16 @@ class ForgettingAttentionLayer(nn.Module):
         else:
             v = self.v_proj(hidden_states)
 
+        if self.qk_norm and (not self.qk_norm_share_param_across_head):
+            q = self.q_norm(q).to(q.dtype)
+            k = self.k_norm(k).to(k.dtype)
+
         q = rearrange(q, '... (h d) -> ... h d', h=self.num_heads)
         k = rearrange(k, '... (h d) -> ... h d', h=self.num_kv_heads)
         v = rearrange(v, 'b t (h d) -> b h t d', h=self.num_kv_heads)
 
 
-        if self.qk_norm:
+        if self.qk_norm and (self.qk_norm_share_param_across_head):
             q = self.q_norm(q).to(q.dtype)
             k = self.k_norm(k).to(k.dtype)
 
@@ -519,6 +532,7 @@ class ForgettingTransformerBlock(nn.Module):
             use_output_norm = config.use_output_norm,
             norm_eps=config.norm_eps,
             qk_norm=config.qk_norm,
+            qk_norm_share_param_across_head=config.qk_norm_share_param_across_head,
             use_k_shift=config.use_k_shift,
             use_v_shift=config.use_v_shift,
             initializer_range=config.initializer_range,
