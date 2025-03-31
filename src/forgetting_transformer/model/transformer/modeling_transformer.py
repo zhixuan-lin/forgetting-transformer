@@ -49,7 +49,6 @@ class Attention(nn.Module):
         rope_base: float = 500000.0,
         use_rope: bool = True,
         layer_idx: int = None,
-        qk_norm: bool = False,
     ):
         super().__init__()
 
@@ -71,10 +70,6 @@ class Attention(nn.Module):
         self.k_proj = nn.Linear(self.hidden_size, self.kv_dim, bias=False)
         self.v_proj = nn.Linear(self.hidden_size, self.kv_dim, bias=False)
         self.o_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
-        self.qk_norm = qk_norm
-        if qk_norm:
-            self.q_norm = RMSNorm(self.head_dim)
-            self.k_norm = RMSNorm(self.head_dim)
 
         if use_rope:
             self.rotary = RotaryEmbedding(self.head_dim, base=rope_base)
@@ -100,9 +95,6 @@ class Attention(nn.Module):
         q = rearrange(self.q_proj(hidden_states), '... (h d) -> ... h d', h=self.num_heads)
         k = rearrange(self.k_proj(hidden_states), '... (h d) -> ... h d', h=self.num_kv_heads)
         v = rearrange(self.v_proj(hidden_states), 'b t (h d) -> b h t d', h=self.num_kv_heads)
-        if self.qk_norm:
-            q = self.q_norm(q).to(q.dtype)
-            k = self.k_norm(k).to(k.dtype)
 
         seqlen_offset, max_seqlen = 0, q.shape[1]
         if past_key_values is not None:
@@ -238,7 +230,6 @@ class TransformerBlock(nn.Module):
             max_position_embeddings=config.max_position_embeddings,
             rope_base=config.rope_base,
             use_rope=config.use_rope,
-            qk_norm=config.qk_norm,
             layer_idx=layer_idx
         )
         self.mlp_norm = RMSNorm(hidden_size=config.hidden_size, eps=config.norm_eps)

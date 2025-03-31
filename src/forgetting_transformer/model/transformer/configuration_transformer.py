@@ -35,7 +35,6 @@ class TransformerConfig(PretrainedConfig):
         fuse_cross_entropy: bool = True,
         rope_base: float = 500000.0,
         use_rope: bool = True,
-        qk_norm: bool = False,
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -58,7 +57,6 @@ class TransformerConfig(PretrainedConfig):
         self.fuse_norm = fuse_norm
         self.rope_base = rope_base
         self.use_rope = use_rope
-        self.qk_norm = qk_norm
 
         super().__init__(
             pad_token_id=pad_token_id,

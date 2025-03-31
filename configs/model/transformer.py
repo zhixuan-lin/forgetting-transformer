@@ -31,7 +31,6 @@ class TransformerArgConfig:
     fuse_cross_entropy: bool = True
     rope_base: float = MISSING
     use_rope: bool = True
-    qk_norm: bool = False
 
 
 
