@@ -118,7 +118,7 @@ assert out.size() == (batch_size, seq_len, num_heads, head_dim)
 out.sum().backward()
 ```
 
-Note that our kernel only supports batches that contain sequences of the same lengths. You can find another implementation that supports variable-length inputs in the [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention) repository  (see [here](https://github.com/fla-org/flash-linear-attention/tree/main/fla/ops/forgetting_attn)).
+Note that our kernel only supports input batches that contain sequences of the same length. You can find another implementation that supports variable-length inputs in the [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention) repository (see [here](https://github.com/fla-org/flash-linear-attention/tree/main/fla/ops/forgetting_attn)).
 
 ### FoX Time-Mixing Layer and Model
 
