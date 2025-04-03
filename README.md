@@ -2,7 +2,7 @@
 
 Official PyTorch implementation of [Forgetting Transformer: Softmax Attention with a Forget Gate](https://openreview.net/forum?id=q2Lnyegkr8) (ICLR 2025).
 
-This repository contains the implementation of Forgetting Attention and the Forgetting Transformer (FoX). In particular, we provide an efficient Triton kernel of Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel. 
+This repository contains the implementation of Forgetting Attention and the Forgetting Transformer (FoX). In particular, we provide an efficient Triton kernel of Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel. Besides this official repository, [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention) also has a Forgetting Attention kernel implementation that supports variable-length inputs (see [here](https://github.com/fla-org/flash-linear-attention/tree/main/fla/ops/forgetting_attn)).
 
 We also provide training and evaluation code to reproduce the results in the paper, including all the baselines.
 
@@ -117,6 +117,8 @@ out = forgetting_attention(q, k, v, log_fgate)
 assert out.size() == (batch_size, seq_len, num_heads, head_dim)
 out.sum().backward()
 ```
+
+Note that our kernel only supports batches that contain sequences of the same lengths. You can find another implementation that supports variable-length inputs in the [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention) repository  (see [here](https://github.com/fla-org/flash-linear-attention/tree/main/fla/ops/forgetting_attn)).
 
 ### FoX Time-Mixing Layer and Model
 
