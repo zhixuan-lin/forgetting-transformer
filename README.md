@@ -4,7 +4,7 @@ Official PyTorch implementation of [Forgetting Transformer: Softmax Attention wi
 
 This repository contains the implementation of Forgetting Attention and the Forgetting Transformer (FoX). In particular, we provide an efficient Triton kernel of Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel. Besides this official repository, [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention) also has a Forgetting Attention kernel implementation that supports variable-length inputs (see [here](https://github.com/fla-org/flash-linear-attention/tree/main/fla/ops/forgetting_attn)).
 
-We also provide training and evaluation code to reproduce the results in the paper, including all the baselines.
+We also provide training code, evaluation code, and model checkpoints to reproduce the results in the paper, including all the baselines.
 
 ## Changelog
 
