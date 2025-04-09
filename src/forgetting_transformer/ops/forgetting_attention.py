@@ -170,10 +170,10 @@ class ForgettingAttention(torch.autograd.Function):
             )
 
             # NOTE that dk & dv always have the same number of heads as q, instead of q.
-            BLOCK_M, BLOCK_N, num_stages, num_warps = 32, 128, 5, (4 if D < 128 else 8)
-            if torch.cuda.get_device_capability() == (8, 9):
-                # L40S
-                num_stages = 3
+            BLOCK_M, BLOCK_N, num_stages, num_warps = get_bwd_kv_config(B, H, M, N, D, causal)
+            divisible_m = M % BLOCK_M == 0
+            divisible_n = N % BLOCK_N == 0
+
             dk = torch.empty((B, H, N, D), dtype=k.dtype, device=q.device)
             dv = torch.empty((B, H, N, D), dtype=v.dtype, device=q.device)
             dlog_lambda = torch.empty((B, H, N), dtype=log_lambda.dtype, device=q.device)
@@ -197,10 +197,9 @@ class ForgettingAttention(torch.autograd.Function):
                 num_stages=num_stages, num_warps=num_warps,
             )
 
-            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 5, (4 if D < 128 else 8)
-            if torch.cuda.get_device_capability() == (8, 9):
-                # L40S
-                num_stages = 3
+            BLOCK_M, BLOCK_N, num_stages, num_warps = get_bwd_q_config(B, H, M, N, D, causal)
+            divisible_m = M % BLOCK_M == 0
+            divisible_n = N % BLOCK_N == 0
             dq = torch.zeros_like(q)
             grid = (triton.cdiv(M, BLOCK_M), H, B)
             _bwd_q_kernel[grid](
@@ -529,6 +528,58 @@ def get_bwd_config(B, H, M, N, D, causal):
                 BLOCK_M, BLOCK_N, num_stages, num_warps = 32, 32, 2, 4
     else:
         BLOCK_M, BLOCK_N, num_stages, num_warps = 32, 32, 1, 4
+    return (BLOCK_M, BLOCK_N, num_stages, num_warps)
+
+def get_bwd_kv_config(B, H, M, N, D, causal):
+    assert causal
+    if torch.cuda.get_device_capability() == (8, 0): # A100
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 64, 4, 4
+        else:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 32, 128, 4, 8
+    elif torch.cuda.get_device_capability() == (8, 6): # tune for RTX-3090, device_capability(8, 6)
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 64, 2, 4
+        else:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 32, 32, 2, 4
+    elif torch.cuda.get_device_capability() == (8, 9): # L40S
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 128, 4, 8
+        else:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 32, 128, 2, 8
+    elif torch.cuda.get_device_capability() == (9, 0): # H100
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 64, 3, 4
+        else:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 64, 2, 4
+    else:
+        BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 64, 2, 4
+    return (BLOCK_M, BLOCK_N, num_stages, num_warps)
+
+def get_bwd_q_config(B, H, M, N, D, causal):
+    assert causal
+    if torch.cuda.get_device_capability() == (8, 0): # A100
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 64, 3, 4
+        else:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 64, 4, 8
+    elif torch.cuda.get_device_capability() == (8, 6): # tune for RTX-3090, device_capability(8, 6)
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 64, 2, 4
+        else:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 32, 32, 2, 4
+    elif torch.cuda.get_device_capability() == (8, 9): # L40S
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 4, 4
+        else:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 3, 4
+    elif torch.cuda.get_device_capability() == (9, 0): # H100
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 128, 4, 8
+        else:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 128, 2, 8
+    else:
+        BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 64, 2, 4
     return (BLOCK_M, BLOCK_N, num_stages, num_warps)
 
 
