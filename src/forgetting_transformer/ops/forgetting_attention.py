@@ -282,40 +282,18 @@ def forgetting_attention(
 # --------------------------- Forward ---------------------------
 # NOTE: this function can be overwritten at runtime to use your custom config
 def get_fwd_config(B, H, M, N, D, causal):
+    assert causal
     if torch.cuda.get_device_capability() == (8, 0):
-        if not causal:
-            if D <= 64:
-                BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 64, 3, 4
-            else:
-                if M <= 1024:
-                    BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 3, 4
-                else:
-                    BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 128, 3, 8
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 32, 3, 4
         else:
-            if D <= 64:
-                BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 64, 4, 4
-            else:
-                if M <= 1024:
-                    BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 2, 4
-                else:
-                    BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 128, 3, 8
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 4, 4
     elif torch.cuda.get_device_capability() == (9, 0):
-        if not causal:
-            if D <= 64:
-                BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 64, 3, 4
-            else:
-                if M <= 1024:
-                    BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 3, 4
-                else:
-                    BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 128, 3, 8
+        # H100
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 64, 3, 8
         else:
-            if D <= 64:
-                BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 64, 4, 4
-            else:
-                if M <= 1024:
-                    BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 2, 4
-                else:
-                    BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 128, 3, 8
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 128, 2, 8
     elif torch.cuda.get_device_capability() == (8, 6):
         if not causal:
             if D <= 64:
@@ -327,8 +305,14 @@ def get_fwd_config(B, H, M, N, D, causal):
                 BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 64, 3, 4
             else:
                 BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 2, 4
+    elif torch.cuda.get_device_capability() == (8, 9):
+        # L40S
+        if D <= 64:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 64, 2, 4
+        else:
+            BLOCK_M, BLOCK_N, num_stages, num_warps = 128, 32, 2, 4
     else:
-        BLOCK_M, BLOCK_N, num_stages, num_warps = 32, 32, 1, 4
+        BLOCK_M, BLOCK_N, num_stages, num_warps = 64, 64, 2, 4
     return (BLOCK_M, BLOCK_N, num_stages, num_warps)
 
 
@@ -958,7 +942,7 @@ def _bwd_q_kernel(
 
 @pytest.mark.parametrize("Z, H, M, N, HEAD_DIM", [(4, 2, 1020, 2098, 64), (4, 2, 1024, 2048, 64)])
 @pytest.mark.parametrize("causal", [True])
-def test_op(Z, H, M, N, HEAD_DIM, causal, dtype=torch.float32):
+def test_op(Z, H, M, N, HEAD_DIM, causal, dtype=torch.bfloat16):
     torch.manual_seed(24)
     q = (torch.empty((Z, H, M, HEAD_DIM), dtype=dtype, device="cuda").normal_(mean=0.0, std=0.5).requires_grad_())
     k = (torch.empty((Z, H, N, HEAD_DIM), dtype=dtype, device="cuda").normal_(mean=0.0, std=0.5).requires_grad_())
