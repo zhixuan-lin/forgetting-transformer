@@ -309,7 +309,7 @@ assert out.logits.size() == (batch_size, seq_len, tokenizer.vocab_size)
 
 ### Dependencies
 
-First, make sure you've done an editable installaltion of this repository if you haven't:
+First, make sure you've done an editable installation of this repository if you haven't:
 
 ```bash
 git clone git@github.com:zhixuan-lin/forgetting-transformer.git
