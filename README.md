@@ -84,7 +84,7 @@ def forgetting_attention(
               None, it defaults to (1.0 / math.sqrt(head_dim))
 
     Returns:
-        out (torch.Tensor): (batch_size, num_heads, seqlen_q, head_dim) unless head_first=True.
+        out (torch.Tensor): (batch_size, seqlen_q, num_heads, head_dim) unless head_first=True.
     """
 ```
 
