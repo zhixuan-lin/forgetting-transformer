@@ -40,6 +40,7 @@ class ForgettingTransformerArgConfig:
     use_output_norm: bool = False
     qk_norm: bool = False
     qk_norm_share_param_across_head: bool = False
+    log_pruning_tolerance: Optional[float] = None
 
     use_k_shift: bool = False
     use_v_shift: bool = False

@@ -46,6 +46,7 @@ class ForgettingTransformerConfig(PretrainedConfig):
         qk_norm_share_param_across_head: bool = False,
         use_k_shift: bool = False,
         use_v_shift: bool = False,
+        log_pruning_tolerance: Optional[float] = None,
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -79,6 +80,7 @@ class ForgettingTransformerConfig(PretrainedConfig):
         self.qk_norm_share_param_across_head = qk_norm_share_param_across_head
         self.use_k_shift = use_k_shift
         self.use_v_shift = use_v_shift
+        self.log_pruning_tolerance = log_pruning_tolerance
 
         super().__init__(
             pad_token_id=pad_token_id,

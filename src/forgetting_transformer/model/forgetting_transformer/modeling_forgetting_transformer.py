@@ -155,6 +155,7 @@ class ForgettingAttentionLayer(nn.Module):
         qk_norm_share_param_across_head: bool = False,
         use_k_shift: bool = False,
         use_v_shift: bool = False,
+        log_pruning_tolerance: Optional[float] = None,
         initializer_range: float = 0.02,
         layer_idx: int = None
     ):
@@ -194,6 +195,8 @@ class ForgettingAttentionLayer(nn.Module):
                 scaling parameters across heads. This is just for backward compatibility.
             - use_k_shift: Whether to use data-dependent key shift
             - use_v_shift: Whether to use data-dependent value shift
+            - log_pruning_tolerance: The natural logarithm of the pruning tolerance
+                  hyperparameter epsilon. We recommend setting it to -10.0
             - initializer_range: standard deviation for initialization
             - layer_idx: The block index of this layer. Needed for KV-cache
         """
@@ -212,6 +215,7 @@ class ForgettingAttentionLayer(nn.Module):
         self.kv_dim = self.num_kv_heads * self.head_dim
         self.window_size = window_size
         self.max_position_embeddings = max_position_embeddings
+        self.log_pruning_tolerance = log_pruning_tolerance
         self.layer_idx = layer_idx
 
         self.q_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
@@ -387,6 +391,31 @@ class ForgettingAttentionLayer(nn.Module):
             k = rearrange(k.unsqueeze(-2).repeat(1, 1, 1, self.num_kv_groups, 1), 'b t h g d -> b t (h g) d')
             v = rearrange(v.unsqueeze(-2).repeat(1, 1, 1, self.num_kv_groups, 1), 'b t h g d -> b t (h g) d')
 
+        if self.log_pruning_tolerance is not None:
+            # TODO: normally this should be per-head. Unfortunately we made a mistake
+            # and share the RMSNorm parameters across different heads
+            with torch.no_grad():
+                B, _, T = log_fgate.size()
+                if self.qk_norm:
+                    if self.qk_norm_share_param_across_head:
+                        assert self.q_norm.weight.size() == self.k_norm.weight.size() == (self.head_dim,)
+                        logit_upper_bound = self.q_norm.weight.abs().max()  * self.k_norm.weight.abs().max() * math.sqrt(self.head_dim)
+                    else:
+                        assert self.q_norm.weight.size() == self.k_norm.weight.size() == (self.hidden_size,)
+                        logit_upper_bound = self.q_norm.weight.view(self.num_heads, self.head_dim).abs().max(dim=-1).values  * self.k_norm.weight.view(self.num_heads, self.head_dim).abs().max(dim=-1).values * math.sqrt(self.head_dim)
+                        assert logit_upper_bound.size() == (self.num_heads,)
+
+                    adaptive_threshold = -(2 * logit_upper_bound + math.log(T)) + self.log_pruning_tolerance
+                else:
+                    max_q_norm = torch.linalg.vector_norm(q, dim=-1).max(dim=-1).values
+                    max_k_norm = torch.linalg.vector_norm(k, dim=-1).max(dim=-1).values
+                    assert max_q_norm.size() == max_k_norm.size() == (B, self.num_heads)
+                    logit_upper_bound = max_q_norm * max_k_norm / math.sqrt(self.head_dim)
+                    adaptive_threshold = -(2 * logit_upper_bound + math.log(T)) + self.log_pruning_tolerance
+        else:
+            adaptive_threshold = None
+            
+
         # Contains at least one padding token in the sequence
         if attention_mask is not None:
             B, _, T = log_fgate.size()
@@ -398,6 +427,7 @@ class ForgettingAttentionLayer(nn.Module):
                 head_first=True,
                 seq_start=seq_start,
                 sm_scale=1 / math.sqrt(self.head_dim),
+                adaptive_threshold=adaptive_threshold
             )
             o = rearrange(o, "b h t d -> b t h d")
         else:
@@ -406,6 +436,7 @@ class ForgettingAttentionLayer(nn.Module):
                 log_fgate,
                 head_first=True,
                 sm_scale=1 / math.sqrt(self.head_dim),
+                adaptive_threshold=adaptive_threshold
             )
             o = rearrange(o, "b h t d -> b t h d")
 
@@ -535,6 +566,7 @@ class ForgettingTransformerBlock(nn.Module):
             qk_norm_share_param_across_head=config.qk_norm_share_param_across_head,
             use_k_shift=config.use_k_shift,
             use_v_shift=config.use_v_shift,
+            log_pruning_tolerance=config.log_pruning_tolerance,
             initializer_range=config.initializer_range,
             layer_idx=layer_idx
         )
