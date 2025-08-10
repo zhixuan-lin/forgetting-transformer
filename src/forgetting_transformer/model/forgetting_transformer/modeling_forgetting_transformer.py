@@ -321,6 +321,13 @@ class ForgettingAttentionLayer(nn.Module):
         """
         We assume that during decoding attention mask is always 1. Otherwise it won't work.
         """
+        try:
+            dtype = torch.get_autocast_dtype("cuda") if torch.is_autocast_enabled("cuda") else torch.float32
+        except TypeError:
+            # Support legacy torch version
+            dtype = torch.get_autocast_gpu_dtype() if torch.is_autocast_enabled() else torch.float32
+        # We cast here to avoid duplcate casting due to multiple nn.Linear calls
+        hidden_states = hidden_states.to(dtype)
         batch_size, q_len, _ = hidden_states.size()
         if use_cache:
             key_shift_state = past_key_values.key_shift_cache[self.layer_idx]
