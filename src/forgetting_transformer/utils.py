@@ -17,7 +17,6 @@ with warnings.catch_warnings():
         mamba_ssm = None
 import lightning as L
 from collections import deque, defaultdict, OrderedDict
-from forgetting_transformer.model.forgetting_transformer.modeling_forgetting_transformer import GroupRMSNorm
 
 
 # https://stackoverflow.com/questions/57025836/how-to-check-if-a-given-number-is-a-power-of-two
@@ -157,12 +156,21 @@ def group_parameters(
                 (
                     nn.LayerNorm,
                     # nn.RMSNorm, # Only pytorch 2.4 has this
-                    GroupRMSNorm,
                     fla.modules.RMSNorm,
                     fla.modules.FusedRMSNormSwishGate,
                     fla.modules.LayerNorm,
                     fla.modules.GroupNorm,
                 ),
+            ) or "RMSNorm" in str(module.__class__) or 'GroupNorm' in str(module.__class__):
+                assert param.dim() == 1
+                if param_name == "weight":
+                    should_decay = normalization_weight_decay
+                elif param_name == "bias":
+                    should_decay = normalization_weight_decay and bias_weight_decay
+                else:
+                    raise ValueError(
+                        f"Unknown param {param_name} in module {module_name}."
+                    )
             ) or (mamba_ssm is not None and isinstance(module, mamba_ssm.ops.triton.layernorm_gated.RMSNorm)):
                 assert param.dim() == 1
                 if param_name == "weight":
