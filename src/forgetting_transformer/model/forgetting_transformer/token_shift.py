@@ -9,6 +9,14 @@ def maybe_contiguous(x):
     # so inner-dimension contiguity is enforced.
     return x.contiguous() if x.stride(-1) != 1 else x
 
+@triton.autotune(
+    configs=[
+        triton.Config({"BLOCK_T": block_t}, num_warps=num_warps)
+        for block_t in [32, 64, 128]
+        for num_warps in [2, 4, 8]
+    ],
+    key=["T", "D"],
+)
 @triton.jit
 def shift_fwd_kernel(
     X_PTR,
@@ -24,9 +32,9 @@ def shift_fwd_kernel(
     """
         everything is (B, T, D)
     """
-    b_offset = tl.program_id(axis=0).to(tl.int64)
+    b_offset = tl.program_id(axis=2).to(tl.int64)
     t_offset = tl.program_id(axis=1).to(tl.int64) * BLOCK_T
-    h_offset = tl.program_id(axis=2).to(tl.int64)
+    h_offset = tl.program_id(axis=0).to(tl.int64)
 
 
     x_ptr_offset = b_offset * stride_x_b + t_offset * stride_x_t + h_offset * stride_x_h
@@ -62,6 +70,14 @@ def shift_fwd_kernel(
     tl.store(out_ptr, result, mask=x_mask)
 
 
+@triton.autotune(
+    configs=[
+        triton.Config({"BLOCK_T": block_t}, num_warps=num_warps)
+        for block_t in [32, 64, 128]
+        for num_warps in [2, 4, 8]
+    ],
+    key=["T", "D"],
+)
 @triton.jit
 def shift_bwd_kernel(
     X_PTR,
@@ -81,9 +97,9 @@ def shift_bwd_kernel(
     """
         everything is (B, T, D)
     """
-    b_offset = tl.program_id(axis=0).to(tl.int64)
+    b_offset = tl.program_id(axis=2).to(tl.int64)
     t_offset = tl.program_id(axis=1).to(tl.int64) * BLOCK_T
-    h_offset = tl.program_id(axis=2).to(tl.int64)
+    h_offset = tl.program_id(axis=0).to(tl.int64)
 
 
     x_ptr_offset = b_offset * stride_x_b + t_offset * stride_x_t + h_offset * stride_x_h
@@ -153,10 +169,12 @@ class TokenShift(torch.autograd.Function):
         assert prev_weight.stride() == curr_weight.stride()
         x = maybe_contiguous(x)
         out = torch.empty_like(x)
+        assert x.stride() == out.stride()
 
-        BLOCK_T = triton.next_power_of_2(min(64, T))
+        # BLOCK_T = triton.next_power_of_2(min(64, T))
 
-        grid = lambda meta: (B, triton.cdiv(T, meta["BLOCK_T"]), H)
+        # grid = lambda meta: (B, triton.cdiv(T, meta["BLOCK_T"]), H)
+        grid = lambda meta: (H, triton.cdiv(T, meta["BLOCK_T"]), B)
         # NOTE:
         #  - Each torch.tensor object is implicitly converted into a pointer to its first element.
         #  - `triton.jit`'ed functions can be indexed with a launch grid to obtain a callable GPU kernel.
@@ -169,7 +187,7 @@ class TokenShift(torch.autograd.Function):
             *x.stride(),
             *curr_weight.stride(),
             T=T, D=D,
-            BLOCK_T=BLOCK_T,
+            # BLOCK_T=BLOCK_T,
         )
         ctx.save_for_backward(x, prev_weight, curr_weight)
         # We return a handle to z but, since `torch.cuda.synchronize()` hasn't been called, the kernel is still
@@ -183,16 +201,17 @@ class TokenShift(torch.autograd.Function):
         B, T, H, D = x.size()
         assert D in {16, 32, 64, 128}
         assert prev_weight.size() == curr_weight.size() == (B, T, H)
-        assert prev_weight.stride() == curr_weight.stride()
         x = maybe_contiguous(x)
-        assert dout.stride() == x.stride()
         dx = torch.empty_like(x)
         dcurr_weight = torch.empty_like(curr_weight)
         dprev_weight = torch.empty_like(prev_weight)
+        assert prev_weight.stride() == curr_weight.stride() == dcurr_weight.stride() == dprev_weight.stride()
+        assert dout.stride() == x.stride() == dx.stride()
 
-        BLOCK_T = triton.next_power_of_2(min(64, T))
+        # BLOCK_T = triton.next_power_of_2(min(64, T))
 
-        grid = lambda meta: (B, triton.cdiv(T, meta["BLOCK_T"]), H)
+        # grid = lambda meta: (B, triton.cdiv(T, meta["BLOCK_T"]), H)
+        grid = lambda meta: (H, triton.cdiv(T, meta["BLOCK_T"]), B)
         # NOTE:
         #  - Each torch.tensor object is implicitly converted into a pointer to its first element.
         #  - `triton.jit`'ed functions can be indexed with a launch grid to obtain a callable GPU kernel.
@@ -209,7 +228,7 @@ class TokenShift(torch.autograd.Function):
             *curr_weight.stride(),
             T=T,
             D=D,
-            BLOCK_T=BLOCK_T,
+            # BLOCK_T=BLOCK_T,
         )
         # We return a handle to z but, since `torch.cuda.synchronize()` hasn't been called, the kernel is still
         # running asynchronously at this point.
@@ -220,8 +239,8 @@ def token_shift(x, prev_weight, curr_weight):
 
 
 
-@pytest.mark.parametrize("B, T, H, D", [(4, 2048, 12, 128)])
-def test_op(B, T, H, D, dtype=torch.float32):
+@pytest.mark.parametrize("B, T, H, D", [(4, 2048, 12, 64)])
+def test_op(B, T, H, D, dtype=torch.float16):
     torch.manual_seed(24)
     B = 4
     T = 2088
@@ -260,21 +279,79 @@ def test_op(B, T, H, D, dtype=torch.float32):
     assert torch.allclose(ref_dx, tri_dx, atol=1e-2, rtol=0), (ref_dx - tri_dx).abs().max()
     assert torch.allclose(ref_dcurr_weight, tri_dcurr_weight, atol=1e-2, rtol=0), (ref_dcurr_weight - tri_dcurr_weight).abs().max()
 
+
 if __name__ == "__main__":
-    torch.manual_seed(0)
-    B = 4
-    T = 2088
-    H = 12
-    D = 128
-    # x = torch.rand(size, device='cuda')
-    x = torch.randn(B, T, H, D, device="cuda")
-    dout = torch.randn(B, T, H, D, device="cuda")
-    curr_weight = torch.rand(B, T, H, device="cuda")
-    prev_weight = 1.0 - curr_weight
-    # out_torch = x if x.sum() > 0.0 else y
-    result = shift_fwd(x, prev_weight, curr_weight)
-    print(result[0, :, 0, 0])
-    import ipdb; ipdb.set_trace()
+    BATCH, N_HEADS, HEAD_DIM = 8, 12, 64
+    configs = []
+    for mode in ["fwd", "bwd"]:
+        configs.append(
+            triton.testing.Benchmark(
+                x_names=["N_CTX"],
+                # x_vals=[2**i for i in range(10, 15)],
+                # x_vals=[2**i for i in range(10, 15)],
+                x_vals=[4096],
+                line_arg="provider",
+                # line_vals=["triton-fp16", "flag"] + (["flash"] if HAS_FLASH else []),
+                # line_names=["Triton [FP16]", "Flag"] + (["Flash-2"] if HAS_FLASH else []),
+                line_vals=["official"],
+                line_names=["Official"],
+                styles=[("red", "-"), ("blue", "-"), ("green", "-")],
+                ylabel="ms",
+                plot_name=f"token-shift-{BATCH}-head{N_HEADS}-d{HEAD_DIM}-{mode}",
+                args={
+                    "H": N_HEADS,
+                    "BATCH": BATCH,
+                    "HEAD_DIM": HEAD_DIM,
+                    "mode": mode,
+                },
+            ))
+    @triton.testing.perf_report(configs)
+    def bench_token_shift(
+        BATCH, H, N_CTX, HEAD_DIM, mode, provider
+    ):
+        assert mode in ["fwd", "bwd"]
+        warmup = 25
+        rep = 100
+        dtype = torch.bfloat16
+        if "official" in provider:
+            x = torch.randn(BATCH, N_CTX, H, HEAD_DIM, device="cuda", dtype=dtype, requires_grad=True)
+            curr_weight = torch.rand(BATCH, N_CTX, H, device="cuda", requires_grad=True)
+            prev_weight = 1.0 - curr_weight
+            # if mode == "fwd" and "fp8" in provider:
+            #     q = q.to(torch.float8_e5m2)
+            #     k = k.to(torch.float8_e5m2)
+            #     v = v.permute(0, 1, 3, 2).contiguous()
+            #     v = v.permute(0, 1, 3, 2)
+            #     v = v.to(torch.float8_e5m2)
+            fn = lambda: token_shift(x, prev_weight, curr_weight)
+            if mode == "bwd":
+                o = fn()
+                do = torch.randn_like(o)
+                fn = lambda: o.backward(do, retain_graph=True)
+            ms = triton.testing.do_bench(fn, warmup=warmup, rep=rep)
+        return ms
+    bench_token_shift.run(save_path=".", print_data=True)
+
+
+
+
+# if __name__ == "__main__":
+    # only works on post-Ampere GPUs right now
+    # bench_flash_attention.run(save_path=".", print_data=True)
+    # torch.manual_seed(0)
+    # B = 4
+    # T = 2088
+    # H = 12
+    # D = 128
+    # # x = torch.rand(size, device='cuda')
+    # x = torch.randn(B, T, H, D, device="cuda")
+    # dout = torch.randn(B, T, H, D, device="cuda")
+    # curr_weight = torch.rand(B, T, H, device="cuda")
+    # prev_weight = 1.0 - curr_weight
+    # # out_torch = x if x.sum() > 0.0 else y
+    # result = shift_fwd(x, prev_weight, curr_weight)
+    # print(result[0, :, 0, 0])
+    # import ipdb; ipdb.set_trace()
     # # for mode in ["fwd", "bwd"]:
     # configs.append(
     #     triton.testing.Benchmark(

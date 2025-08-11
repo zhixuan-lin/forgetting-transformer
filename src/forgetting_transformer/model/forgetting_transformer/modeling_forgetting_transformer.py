@@ -34,6 +34,13 @@ from functools import partial
 logger = logging.get_logger(__name__)
 
 
+@torch.jit.script
+def weight_sum(x, y, alpha):
+    out = alpha * x + (1.0 - alpha) * y
+    out = out.to(x.dtype)
+    return out
+
+
 class ShiftLinear(nn.Module):
 
     def __init__(
@@ -74,7 +81,8 @@ class ShiftLinear(nn.Module):
             result_per_head = token_shift(out_per_head, alpha, 1.0 - alpha)
         else:
             shift_state_per_head = rearrange(shift_state, 'b (h d) -> b 1 h d', h=self.num_heads)
-            result_per_head = (alpha[..., None] * shift_state_per_head + (1 - alpha[..., None]) * out_per_head)
+            # result_per_head = (alpha[..., None] * shift_state_per_head + (1 - alpha[..., None]) * out_per_head)
+            result_per_head = weight_sum(shift_state_per_head, out_per_head, alpha[..., None])
 
         result_per_head = result_per_head.to(out.dtype)
 
