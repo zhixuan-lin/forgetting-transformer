@@ -18,7 +18,6 @@ from transformers.utils import logging
 
 # from fla.layers.attn import Attention
 from fla.modules import FusedCrossEntropyLoss
-from fla.modules.activations import swiglu_linear
 
 from fla.modules import RotaryEmbedding
 from einops import rearrange
@@ -26,7 +25,7 @@ from einops import rearrange
 from .configuration_forgetting_transformer import ForgettingTransformerConfig
 from forgetting_transformer.ops.forgetting_attention import forgetting_attention
 from .fgate_cache import FgateDynamicCache
-from .glu_linear import glu_linear
+from .glu_linear import glu_linear, swiglu_linear
 from .token_shift import token_shift
 from .layernorm import GroupNorm, RMSNorm
 from .fuse_norm_gate import FusedGroupNormGated
