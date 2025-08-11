@@ -171,16 +171,6 @@ def group_parameters(
                     raise ValueError(
                         f"Unknown param {param_name} in module {module_name}."
                     )
-            ) or (mamba_ssm is not None and isinstance(module, mamba_ssm.ops.triton.layernorm_gated.RMSNorm)):
-                assert param.dim() == 1
-                if param_name == "weight":
-                    should_decay = normalization_weight_decay
-                elif param_name == "bias":
-                    should_decay = normalization_weight_decay and bias_weight_decay
-                else:
-                    raise ValueError(
-                        f"Unknown param {param_name} in module {module_name}."
-                    )
             elif isinstance(module, nn.Linear):
                 if param_name == "weight":
                     should_decay = True
