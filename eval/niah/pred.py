@@ -13,7 +13,7 @@ import tqdm
 import argparse
 # from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
 # replace_llama_attn_with_flash_attn()
-import forgetting_transformer.model
+import forgetting_transformer.model.register_all
 import forgetting_transformer.tokenizer
 
 def parse_args(args=None):

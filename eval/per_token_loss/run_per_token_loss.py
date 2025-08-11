@@ -20,7 +20,7 @@ import pprint
 import argparse
 from transformers import AutoModelForCausalLM
 from forgetting_transformer.datamodule.longcrawl64 import LongCrawl64DataModule
-import forgetting_transformer.model
+import forgetting_transformer.model.register_all
 import pickle
 import numpy as np
 import tqdm

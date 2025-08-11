@@ -19,7 +19,7 @@ import pprint
 import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizerFast, LlamaTokenizer
 import forgetting_transformer.tokenizer
-import forgetting_transformer.model
+import forgetting_transformer.model.register_all
 import pickle
 
 

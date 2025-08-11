@@ -269,7 +269,7 @@ Therefore, these models are only suitable for research purposes (e.g., inspectin
 These checkpoints can be downloaded from [this HuggingFace collection](https://huggingface.co/collections/zhixuan-lin/forgetting-transformer-paper-checkpoints-67d0ded3caa418ff0cc16ba4). Here is a usage example:
 
 ```python
-import forgetting_transformer.model  # Needed to register the model classes
+import forgetting_transformer.model.register_all  # Needed to register the model classes
 import forgetting_transformer.tokenizer  # Needed to register the tokenizer class
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
@@ -401,7 +401,7 @@ python save_model.py \
 This saves the model to `$HF_SAVE_DIR`. After you save the model, you can load the saved model as follows:
 
 ```python
-import forgetting_transformer.model  # Needed to register the model classes
+import forgetting_transformer.model.register_all  # Needed to register the model classes
 from transformers import AutoModelForCausalLM
 model = AutoModelForCausalLM.from_pretrain("./output/hf/fox-pro-760m-48b")
 ```

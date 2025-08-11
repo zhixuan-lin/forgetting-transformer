@@ -16,7 +16,7 @@ import argparse
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
-import forgetting_transformer.model
+import forgetting_transformer.model.register_all
 import forgetting_transformer.tokenizer
 
 def parse_args(args=None):

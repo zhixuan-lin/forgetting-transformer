@@ -11,7 +11,7 @@ from asyncio import Semaphore
 from transformers import AutoTokenizer
 import argparse
 from pathlib import Path
-import forgetting_transformer.model
+import forgetting_transformer.model.register_all
 import forgetting_transformer.tokenizer
 
 # load_dotenv()
