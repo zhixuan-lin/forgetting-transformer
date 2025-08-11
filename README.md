@@ -1,8 +1,8 @@
 # Forgetting Transformer
 
 Official PyTorch implementation of 
-* [Forgetting Transformer: Softmax Attention with a Forget Gate](https://openreview.net/forum?id=q2Lnyegkr8) (ICLR 2025)
-* [Adaptive Computation Pruning for the Forgetting Transformer](https://openreview.net/forum?id=xNj14CY5S1) (COLM 2025)
+* [Forgetting Transformer: Softmax Attention with a Forget Gate](https://arxiv.org/abs/2503.02130) (ICLR 2025)
+* [Adaptive Computation Pruning for the Forgetting Transformer](https://arxiv.org/abs/2504.06949) (COLM 2025)
 
 This repository contains the implementation of Forgetting Attention and the Forgetting Transformer (FoX), with support for Adaptive Computation Pruning (ACP). In particular, we provide **an efficient Triton kernel of Forgetting Attention that could be used as a (almost) drop-in replacement for the regular FlashAttention kernel**. Besides this official repository, [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention) also has a Forgetting Attention kernel implementation that supports variable-length inputs (see [here](https://github.com/fla-org/flash-linear-attention/tree/main/fla/ops/forgetting_attn)). We also provide training code, evaluation code, and model checkpoints to reproduce the results in the FoX paper, including all the baselines.
 
