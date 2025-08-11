@@ -53,6 +53,7 @@ def forgetting_attention(
     head_first: bool = False,
     seq_start: Optional[torch.Tensor] = None,
     sm_scale: Optional[float] = None,
+    adaptive_threshold: Optional[Union[float, torch.Tensor]] = None,
 ):
     """
     A FlashAttention-based implementation of Forgetting Attention. 
@@ -81,6 +82,8 @@ def forgetting_attention(
               This is useful for left-padded inputs.
         - sm_scale: The scaling of attention scores before applying softmax. If
               None, it defaults to (1.0 / math.sqrt(head_dim))
+        - adaptive_threshold: The threshold for adaptive computation pruning. Must be
+              broadcastable to (batch_size, num_heads)
 
     Returns:
         out (torch.Tensor): (batch_size, seqlen_q, num_heads, head_dim) unless head_first=True.

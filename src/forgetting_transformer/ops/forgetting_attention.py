@@ -416,7 +416,7 @@ def forgetting_attention(
         - v: (batch_size, seqlen_k, num_heads, head_dim) unless head_first=True.
         - log_fgate: (batch_size, seqlen_k, num_heads) unless head_first=True. 
               This should be the **log** of the forget gates. This is typically the 
-              output of torch.nn.functional.log_sigmoid.
+              output of torch.nn.functional.logsigmoid.
         - head_first: if True, the order the num_heads and seqlen_* axis of the all 
               FloatTensor inputs and outputs should be (num_heads, seq_len_*) instead of
               (seq_len_*, num_heads)
@@ -430,7 +430,7 @@ def forgetting_attention(
               broadcastable to (batch_size, num_heads)
 
     Returns:
-        out (torch.Tensor): (batch_size, num_heads, seqlen_q, head_dim) unless head_first=True.
+        out (torch.Tensor): (batch_size, seqlen_q, num_heads, head_dim) unless head_first=True.
     """
     if not head_first:
         q, k, v = [rearrange(item, "b t h d -> b h t d") for item in (q, k, v)]
