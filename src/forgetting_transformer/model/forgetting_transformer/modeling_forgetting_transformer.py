@@ -17,7 +17,6 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import logging
 
 
-from fla.modules import RotaryEmbedding
 from einops import rearrange
 
 from .configuration_forgetting_transformer import ForgettingTransformerConfig
@@ -28,6 +27,7 @@ from .token_shift import token_shift
 from .layernorm import GroupNorm, RMSNorm
 from .fuse_norm_gate import FusedGroupNormGated
 from .fused_cross_entropy import FusedCrossEntropyLoss
+from .rotary import RotaryEmbedding
 
 from functools import partial
 
