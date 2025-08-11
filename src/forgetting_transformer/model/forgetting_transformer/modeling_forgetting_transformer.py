@@ -16,8 +16,6 @@ from transformers.modeling_outputs import (BaseModelOutputWithPast,
 from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import logging
 
-# from fla.layers.attn import Attention
-from fla.modules import FusedCrossEntropyLoss
 
 from fla.modules import RotaryEmbedding
 from einops import rearrange
@@ -29,6 +27,7 @@ from .glu_linear import glu_linear, swiglu_linear
 from .token_shift import token_shift
 from .layernorm import GroupNorm, RMSNorm
 from .fuse_norm_gate import FusedGroupNormGated
+from .fused_cross_entropy import FusedCrossEntropyLoss
 
 from functools import partial
 
