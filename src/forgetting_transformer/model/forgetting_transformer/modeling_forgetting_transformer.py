@@ -17,8 +17,7 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import logging
 
 # from fla.layers.attn import Attention
-from fla.modules import FusedCrossEntropyLoss, RMSNorm
-from fla.modules.layernorm import group_norm_fn
+from fla.modules import FusedCrossEntropyLoss
 from fla.modules.activations import swiglu_linear
 
 from fla.modules import RotaryEmbedding
@@ -29,6 +28,8 @@ from forgetting_transformer.ops.forgetting_attention import forgetting_attention
 from .fgate_cache import FgateDynamicCache
 from .glu_linear import glu_linear
 from .token_shift import token_shift
+from .layernorm import GroupNorm, RMSNorm
+from .fuse_norm_gate import FusedGroupNormGated
 
 from functools import partial
 
@@ -84,53 +85,6 @@ class ShiftLinear(nn.Module):
 
         result = rearrange(result_per_head, 'b t h d -> b t (h d)', h=self.num_heads)
         return result
-
-class GroupRMSNorm(nn.Module):
-    def __init__(
-        self,
-        num_groups: int,
-        hidden_size: int,
-        elementwise_affine: bool = True,
-        bias: bool = False,
-        eps: float = 1e-5
-    ) -> GroupRMSNorm:
-        super().__init__()
-
-        if hidden_size % num_groups != 0:
-            raise ValueError('num_channels must be divisible by num_groups')
-
-        self.num_groups = num_groups
-        self.hidden_size = hidden_size
-        self.elementwise_affine = elementwise_affine
-        self.eps = eps
-
-        self.register_parameter("weight", None)
-        self.register_parameter("bias", None)
-        if elementwise_affine:
-            self.weight = nn.Parameter(torch.ones(hidden_size))
-            if bias:
-                self.bias = nn.Parameter(torch.zeros(hidden_size))
-
-    def __repr__(self) -> str:
-        s = f"{self.__class__.__name__}({self.num_groups}, {self.hidden_size}"
-        if not self.elementwise_affine:
-            s += f", elementwise_affine={self.elementwise_affine}"
-        s += f", eps={self.eps}"
-        s += ")"
-        return s
-
-    def forward(self, x, residual=None, prenorm=False, residual_in_fp32=False):
-        return group_norm_fn(
-            x,
-            self.weight,
-            self.bias,
-            residual=residual,
-            eps=self.eps,
-            prenorm=prenorm,
-            residual_in_fp32=residual_in_fp32,
-            is_rms_norm=True,
-            num_groups=self.num_groups
-        )
 
 class ForgettingAttentionLayer(nn.Module):
 
@@ -277,7 +231,10 @@ class ForgettingAttentionLayer(nn.Module):
             self.ogate_proj = None
 
         if use_output_norm:
-            self.output_norm = GroupRMSNorm(num_groups=self.num_heads, hidden_size=self.hidden_size, eps=norm_eps)
+            if use_output_gate:
+                self.output_norm = FusedGroupNormGated(num_groups=self.num_heads, hidden_size=self.hidden_size, eps=norm_eps, activation="sigmoid", is_rms_norm=True)
+            else:
+                self.output_norm = GroupNorm(num_groups=self.num_heads, hidden_size=self.hidden_size, eps=norm_eps, is_rms_norm=True)
         else:
             self.output_norm = None
 
@@ -296,8 +253,8 @@ class ForgettingAttentionLayer(nn.Module):
                 self.q_norm = RMSNorm(self.head_dim)
                 self.k_norm = RMSNorm(self.head_dim)
             else:
-                self.q_norm = GroupRMSNorm(num_groups=self.num_heads, hidden_size=self.hidden_size)
-                self.k_norm = GroupRMSNorm(num_groups=self.num_heads, hidden_size=self.hidden_size)
+                self.q_norm = GroupNorm(num_groups=self.num_heads, hidden_size=self.hidden_size, is_rms_norm=True)
+                self.k_norm = GroupNorm(num_groups=self.num_heads, hidden_size=self.hidden_size, is_rms_norm=True)
 
         self.initializer_range = initializer_range
         self.apply(self._initialize_weights)
@@ -450,12 +407,13 @@ class ForgettingAttentionLayer(nn.Module):
         o = o.reshape(batch_size, q_len, self.hidden_size)
 
         if self.output_norm is not None:
-            o = self.output_norm(o)
-
-        if self.ogate_proj is not None:
-            # ogate = self.ogate act(self.ogate_proj(hidden_states))
-            # o = o * ogate
-            # ogate = act_gate(self.ogate_proj(hidden_states), o)
+            if self.ogate_proj is not None:
+                assert self.ogate_act == "sigmoid"
+                o = self.output_norm(o, g=self.ogate_proj(hidden_states))
+            else:
+                o = self.output_norm(o)
+            o = self.o_proj(o)
+        elif self.ogate_proj is not None:
             ogate_logit = self.ogate_proj(hidden_states)
             dtype = ogate_logit.dtype
             if self.ogate_act == "silu":
