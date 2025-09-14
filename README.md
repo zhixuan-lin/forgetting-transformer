@@ -53,7 +53,7 @@ def forgetting_attention(
     head_first: bool = False,
     seq_start: Optional[torch.Tensor] = None,
     sm_scale: Optional[float] = None,
-    adaptive_threshold: Optional[Union[float, torch.Tensor]] = None,
+    adaptive_threshold: Optional[Union[Literal["auto"], float, torch.Tensor]] = None,
 ):
     """
     A FlashAttention-based implementation of Forgetting Attention. 
@@ -80,8 +80,10 @@ def forgetting_attention(
               This is useful for left-padded inputs.
         - sm_scale: The scaling of attention scores before applying softmax. If
               None, it defaults to (1.0 / math.sqrt(head_dim))
-        - adaptive_threshold: The threshold for adaptive computation pruning. Must be
-              broadcastable to (batch_size, num_heads)
+        - adaptive_threshold: The threshold for adaptive computation pruning. This
+              should be either the string "auto", a float, or a Tensor that is 
+              broadcastable to (batch_size, num_heads). If "auto", the threshold would 
+              be computed automatically based on the L2 norms of queries and keys.
 
     Returns:
         out (torch.Tensor): (batch_size, seqlen_q, num_heads, head_dim) unless head_first=True.
@@ -122,7 +124,16 @@ Note that our kernel only supports input batches that contain sequences of the s
 
 ### Adaptive Computation Pruning
 
-It is highly recommended you use Forgetting Attention with Adaptive Computation Pruning, especially for long-context pretraining. The core API change compared to the original Forgetting Attention kernel is the `adaptive_threshold` argument, which corresponds to the $\delta$ threshold in the paper. Here is an example demonstrating how you should set the threshold, depending on whether QK-norm is used:
+It is highly recommended you use Forgetting Attention with Adaptive Computation Pruning, especially for long-context pretraining. The core API change compared to the original Forgetting Attention kernel is the `adaptive_threshold` argument, which corresponds to the $\delta$ threshold in the paper. 
+
+
+The easiest way to use ACP is by setting `adaptive_threshold="auto"`, and the threshold will be computed automatically computed from the L2-norms of the queries and keys:
+
+```python
+out = forgetting_attention(q, k, v, log_fgate, adaptive_threshold="auto")
+```
+
+However, if you know the max L2-norms of the queries and keys, or if you are using QK-norm (as in FoX (Pro)), it could be slightly faster to compute `adaptive_threshold` manually. Here is an example demonstrating how you should manually set the threshold, depending on whether QK-norm is used:
 
 ```python
 import torch

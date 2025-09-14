@@ -19,13 +19,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import pytest
 import math
 import torch
 import triton
 import triton.language as tl
 from einops import rearrange
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Literal
 from collections import defaultdict
 
 
@@ -83,13 +82,29 @@ class ForgettingAttention(torch.autograd.Function):
 
 
         B, H, M, D = q.shape
+        N = k.shape[2]
+        assert log_fgate.shape == (B, H, N)
+        if sm_scale is None:
+            sm_scale = 1. / math.sqrt(D)
 
         if adaptive_threshold is not None:
+            if isinstance(adaptive_threshold, str):
+                assert adaptive_threshold == "auto", f'adaptive_threshold must be either the string "auto", a float, or a Tensor, but got {adaptive_threshold}.'
+                # Otherwise we could calculate the max L2 norms manually 
+                max_q_norm = torch.linalg.vector_norm(q, dim=-1).max(dim=-1).values
+                max_k_norm = torch.linalg.vector_norm(k, dim=-1).max(dim=-1).values
+                assert max_q_norm.size() == max_k_norm.size() == (B, H)
+
+                logit_upper_bound = max_q_norm * max_k_norm * sm_scale
+                tolerance = -10
+                # Note we should use N instead of M here
+                adaptive_threshold = -(2 * logit_upper_bound + math.log(N)) + tolerance
+                
             adaptive_threshold = torch.as_tensor(adaptive_threshold, dtype=torch.float, device=q.device)
             try:
                 adaptive_threshold = torch.broadcast_to(adaptive_threshold, (B, H))
             except RuntimeError:
-                raise RuntimeError(f"adaptive_threshold must be broadcastable to (batch_size, num_heads) = ({B}, {H}), but got {adaptive_threshold.size()}.")
+                raise RuntimeError(f'adaptive_threshold must be either the string "auto" or broadcastable to (batch_size, num_heads) = ({B}, {H}), but got {adaptive_threshold.size()}.')
             assert adaptive_threshold.size() == (B, H)
 
         if seq_start is not None:
@@ -98,8 +113,6 @@ class ForgettingAttention(torch.autograd.Function):
         else:
             has_seq_start = False
             seq_start = torch.zeros((B,), device=q.device, dtype=torch.long)
-        N = k.shape[2]
-        assert log_fgate.shape == (B, H, N)
         log_fgate = log_fgate.float()
         if has_seq_start:
             log_fgate = log_fgate.clone()
@@ -122,8 +135,6 @@ class ForgettingAttention(torch.autograd.Function):
         larger_m = M > N
         assert (not larger_m), "The key/value tensors must be longer than the query tensor"
 
-        if sm_scale is None:
-            sm_scale = 1. / math.sqrt(D)
 
         # contiguity
         q, k, v = maybe_contiguous(q), maybe_contiguous(k), maybe_contiguous(v)
@@ -397,15 +408,13 @@ def forgetting_attention(
     head_first: bool = False,
     seq_start: Optional[torch.Tensor] = None,
     sm_scale: Optional[float] = None,
-    adaptive_threshold: Optional[Union[float, torch.Tensor]] = None,
+    adaptive_threshold: Optional[Union[Literal["auto"], float, torch.Tensor]] = None,
 ):
     """
     A FlashAttention-based implementation of Forgetting Attention. 
 
     Note:
-    - We recommand bfloat16/float16 for q, k, v and float32 for log_fgate. float32 for 
-      q, k, v is also supported, but the kernel will not use tensor cores if q, k, v are
-      in float32 (which would be slow).
+    - q, k, v should be in bfloat16/float16 and log_fgate should be in float32.
     - We only support seqlen_q <= seqlen_k
     - We only support causal attention
     - Head dimension must be in one of {16, 32, 64, 128}
@@ -426,8 +435,10 @@ def forgetting_attention(
               This is useful for left-padded inputs.
         - sm_scale: The scaling of attention scores before applying softmax. If
               None, it defaults to (1.0 / math.sqrt(head_dim))
-        - adaptive_threshold: The threshold for adaptive computation pruning. Must be
-              broadcastable to (batch_size, num_heads)
+        - adaptive_threshold: The threshold for adaptive computation pruning. This
+              should be either the string "auto", a float, or a Tensor that is 
+              broadcastable to (batch_size, num_heads). If "auto", the threshold would 
+              be computed automatically based on the L2 norms of queries and keys.
 
     Returns:
         out (torch.Tensor): (batch_size, seqlen_q, num_heads, head_dim) unless head_first=True.
@@ -1412,88 +1423,6 @@ def test_op(Z, H, M, N, HEAD_DIM, causal, fgate_logit_range, has_seq_start, adap
     assert torch.allclose(ref_dq, tri_dq, atol=1e-2, rtol=rtol), (ref_dq - tri_dq).abs().max()
     assert torch.allclose(ref_dlog_fgate, tri_dlog_fgate, atol=1e-2, rtol=rtol), (ref_dlog_fgate - tri_dlog_fgate).abs().max()
 
-try:
-    from flash_attn.flash_attn_interface import \
-        flash_attn_qkvpacked_func as flash_attn_func
-    HAS_FLASH = True
-except BaseException:
-    HAS_FLASH = False
-
-TORCH_HAS_FP8 = hasattr(torch, 'float8_e5m2')
-BATCH, N_HEADS, HEAD_DIM = 4, 32, 64
-# vary seq length for fixed head and batch=4
-configs = []
-for mode in ["fwd", "bwd"]:
-# for mode in ["bwd"]:
-    # for causal in [True, False]:
-    for causal in [True]:
-        if mode == "bwd" and not causal:
-            continue
-        configs.append(
-            triton.testing.Benchmark(
-                x_names=["N_CTX"],
-                # x_vals=[2**i for i in range(10, 15)],
-                x_vals=[2**i for i in range(10, 15)],
-                line_arg="provider",
-                # line_vals=["triton-fp16", "flag"] + (["flash"] if HAS_FLASH else []),
-                # line_names=["Triton [FP16]", "Flag"] + (["Flash-2"] if HAS_FLASH else []),
-                line_vals=["flag"] + (["flash"] if HAS_FLASH else []),
-                line_names=["Flag"] + (["Flash-2"] if HAS_FLASH else []),
-                styles=[("red", "-"), ("blue", "-"), ("green", "-")],
-                ylabel="ms",
-                plot_name=f"fused-attention-batch{BATCH}-head{N_HEADS}-d{HEAD_DIM}-{mode}-causal={causal}",
-                args={
-                    "H": N_HEADS,
-                    "BATCH": BATCH,
-                    "HEAD_DIM": HEAD_DIM,
-                    "mode": mode,
-                    "causal": causal,
-                },
-            ))
-
-
-@triton.testing.perf_report(configs)
-def bench_flash_attention(BATCH, H, N_CTX, HEAD_DIM, causal, mode, provider, device="cuda"):
-    assert mode in ["fwd", "bwd"]
-    warmup = 25
-    rep = 100
-    dtype = torch.bfloat16
-    if "flag" in provider:
-        q = torch.randn((BATCH, H, N_CTX, HEAD_DIM), dtype=dtype, device=device, requires_grad=True)
-        k = torch.randn((BATCH, H, N_CTX, HEAD_DIM), dtype=dtype, device=device, requires_grad=True)
-        v = torch.randn((BATCH, H, N_CTX, HEAD_DIM), dtype=dtype, device=device, requires_grad=True)
-        fgate_logit = torch.empty((BATCH, H, N_CTX), dtype=torch.float32, device="cuda").uniform_(0, 10)
-        log_fgate = torch.nn.functional.logsigmoid(fgate_logit).requires_grad_()
-        # if mode == "fwd" and "fp8" in provider:
-        #     q = q.to(torch.float8_e5m2)
-        #     k = k.to(torch.float8_e5m2)
-        #     v = v.permute(0, 1, 3, 2).contiguous()
-        #     v = v.permute(0, 1, 3, 2)
-        #     v = v.to(torch.float8_e5m2)
-        sm_scale = 1.3
-        adaptive_threshold = torch.full((BATCH, H), fill_value=-10, dtype=torch.float, device=device)
-        # adaptive_threshold = -10
-        fn = lambda: forgetting_attention(q, k, v, log_fgate, head_first=True, sm_scale=sm_scale, adaptive_threshold=adaptive_threshold)
-        if mode == "bwd":
-            o = fn()
-            do = torch.randn_like(o)
-            fn = lambda: o.backward(do, retain_graph=True)
-        ms = triton.testing.do_bench(fn, warmup=warmup, rep=rep)
-    if provider == "flash":
-        qkv = torch.randn((BATCH, N_CTX, 3, H, HEAD_DIM), dtype=dtype, device=device, requires_grad=True)
-        fn = lambda: flash_attn_func(qkv, causal=causal)
-        if mode == "bwd":
-            o = fn()
-            do = torch.randn_like(o)
-            fn = lambda: o.backward(do, retain_graph=True)
-        ms = triton.testing.do_bench(fn, warmup=warmup, rep=rep)
-    flops_per_matmul = 2.0 * BATCH * H * N_CTX * N_CTX * HEAD_DIM
-    total_flops = 2 * flops_per_matmul
-    if causal:
-        total_flops *= 0.5
-    if mode == "bwd":
-        total_flops *= 2.5  # 2.0(bwd) + 0.5(recompute)
-    return total_flops / ms * 1e-9
 
 
 if __name__ == "__main__":
