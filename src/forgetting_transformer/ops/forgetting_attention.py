@@ -432,6 +432,8 @@ def forgetting_attention(
     Returns:
         out (torch.Tensor): (batch_size, seqlen_q, num_heads, head_dim) unless head_first=True.
     """
+    for name, entry in dict(q=q, k=k, v=v).items():
+        assert entry.dtype in [torch.float16, torch.bfloat16], f"Only torch.float16 or torch.bfloat16 are supported for q/k/v, but got {entry.dtype} for {name}."
     if not head_first:
         q, k, v = [rearrange(item, "b t h d -> b h t d") for item in (q, k, v)]
         log_fgate = rearrange(log_fgate, "b t h -> b h t")
