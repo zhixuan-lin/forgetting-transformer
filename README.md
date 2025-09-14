@@ -24,16 +24,16 @@ First, install this repository as a regular Python package:
 pip uninstall forgetting_transformer && pip install -U git+https://github.com/zhixuan-lin/forgetting-transformer
 ```
 
-Then, install the rest of the dependencies. If you only want to use the Forgetting Attention kernel (e.g., as a replacement for the FlashAttention kernel), you need the following (we pin the `torch` version to ensure that this works; you don't have to):
+Then, install the rest of the dependencies. If you only want to use the Forgetting Attention kernel (e.g., as a replacement for the FlashAttention kernel), you need the following:
 
 ```bash
-pip install pytest einops numpy
-pip install torch==2.4.0
+pip install einops numpy torch>=2.4.0
 ```
 
-If you want to use the FoX time-mixing layer or the complete FoX model, you additionally need the `transformers` package (again the version is pinned just in case):
+If you want to use the FoX time-mixing layer or the complete FoX model, you additionally need the `transformers` package:
 
 ```bash
+# The version is pinned to ensure everything works; you don't have to
 pip install transformers==4.44.0
 ```
 

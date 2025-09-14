@@ -1329,13 +1329,25 @@ def _bwd_q_kernel(
         tl.store(dq_ptrs, dq.to(input_dtype), mask=mask_m[:, None])
         tl.store(dlog_lambda_out_ptrs, dlog_lambda_out, mask=mask_m)
 
+try:
+    import pytest as _pytest  # type: ignore
+except ModuleNotFoundError:
+    _pytest = None
 
+if _pytest:
+    parametrize = _pytest.mark.parametrize
+else:
+    # Fallback no-op decorator so imports don't require pytest
+    def parametrize(*args, **kwargs):
+        def _decorator(func):
+            return func
+        return _decorator
 
-@pytest.mark.parametrize("Z, H, M, N, HEAD_DIM", [(4, 2, 1020, 2098, 64), (4, 2, 1024, 2048, 128)])
-@pytest.mark.parametrize("causal", [True])
-@pytest.mark.parametrize("fgate_logit_range", [(0, 5), (5, 10)])
-@pytest.mark.parametrize("has_seq_start", [True, False])
-@pytest.mark.parametrize("adaptive_threshold", [-10.0, None, torch.Tensor([-1000.0, -100.0])])
+@parametrize("Z, H, M, N, HEAD_DIM", [(4, 2, 1020, 2098, 64), (4, 2, 1024, 2048, 128)])
+@parametrize("causal", [True])
+@parametrize("fgate_logit_range", [(0, 5), (5, 10)])
+@parametrize("has_seq_start", [True, False])
+@parametrize("adaptive_threshold", [-10.0, None, torch.Tensor([-1000.0, -100.0])])
 def test_op(Z, H, M, N, HEAD_DIM, causal, fgate_logit_range, has_seq_start, adaptive_threshold, dtype=torch.float16):
     torch.manual_seed(24)
     q = (torch.empty((Z, H, M, HEAD_DIM), dtype=dtype, device="cuda").normal_(mean=0.0, std=0.5).requires_grad_())
@@ -1483,5 +1495,87 @@ def bench_flash_attention(BATCH, H, N_CTX, HEAD_DIM, causal, mode, provider, dev
 
 
 if __name__ == "__main__":
+    try:
+        from flash_attn.flash_attn_interface import \
+            flash_attn_qkvpacked_func as flash_attn_func
+        HAS_FLASH = True
+    except BaseException:
+        HAS_FLASH = False
+
+    TORCH_HAS_FP8 = hasattr(torch, 'float8_e5m2')
+    BATCH, N_HEADS, HEAD_DIM = 4, 32, 64
+    # vary seq length for fixed head and batch=4
+    configs = []
+    for mode in ["fwd", "bwd"]:
+    # for mode in ["bwd"]:
+        # for causal in [True, False]:
+        for causal in [True]:
+            if mode == "bwd" and not causal:
+                continue
+            configs.append(
+                triton.testing.Benchmark(
+                    x_names=["N_CTX"],
+                    # x_vals=[2**i for i in range(10, 15)],
+                    x_vals=[2**i for i in range(10, 15)],
+                    line_arg="provider",
+                    # line_vals=["triton-fp16", "flag"] + (["flash"] if HAS_FLASH else []),
+                    # line_names=["Triton [FP16]", "Flag"] + (["Flash-2"] if HAS_FLASH else []),
+                    line_vals=["flag"] + (["flash"] if HAS_FLASH else []),
+                    line_names=["Flag"] + (["Flash-2"] if HAS_FLASH else []),
+                    styles=[("red", "-"), ("blue", "-"), ("green", "-")],
+                    ylabel="ms",
+                    plot_name=f"fused-attention-batch{BATCH}-head{N_HEADS}-d{HEAD_DIM}-{mode}-causal={causal}",
+                    args={
+                        "H": N_HEADS,
+                        "BATCH": BATCH,
+                        "HEAD_DIM": HEAD_DIM,
+                        "mode": mode,
+                        "causal": causal,
+                    },
+                ))
+
+
+    @triton.testing.perf_report(configs)
+    def bench_flash_attention(BATCH, H, N_CTX, HEAD_DIM, causal, mode, provider, device="cuda"):
+        assert mode in ["fwd", "bwd"]
+        warmup = 25
+        rep = 100
+        dtype = torch.bfloat16
+        if "flag" in provider:
+            q = torch.randn((BATCH, H, N_CTX, HEAD_DIM), dtype=dtype, device=device, requires_grad=True)
+            k = torch.randn((BATCH, H, N_CTX, HEAD_DIM), dtype=dtype, device=device, requires_grad=True)
+            v = torch.randn((BATCH, H, N_CTX, HEAD_DIM), dtype=dtype, device=device, requires_grad=True)
+            fgate_logit = torch.empty((BATCH, H, N_CTX), dtype=torch.float32, device="cuda").uniform_(0, 10)
+            log_fgate = torch.nn.functional.logsigmoid(fgate_logit).requires_grad_()
+            # if mode == "fwd" and "fp8" in provider:
+            #     q = q.to(torch.float8_e5m2)
+            #     k = k.to(torch.float8_e5m2)
+            #     v = v.permute(0, 1, 3, 2).contiguous()
+            #     v = v.permute(0, 1, 3, 2)
+            #     v = v.to(torch.float8_e5m2)
+            sm_scale = 1.3
+            adaptive_threshold = torch.full((BATCH, H), fill_value=-10, dtype=torch.float, device=device)
+            # adaptive_threshold = -10
+            fn = lambda: forgetting_attention(q, k, v, log_fgate, head_first=True, sm_scale=sm_scale, adaptive_threshold=adaptive_threshold)
+            if mode == "bwd":
+                o = fn()
+                do = torch.randn_like(o)
+                fn = lambda: o.backward(do, retain_graph=True)
+            ms = triton.testing.do_bench(fn, warmup=warmup, rep=rep)
+        if provider == "flash":
+            qkv = torch.randn((BATCH, N_CTX, 3, H, HEAD_DIM), dtype=dtype, device=device, requires_grad=True)
+            fn = lambda: flash_attn_func(qkv, causal=causal)
+            if mode == "bwd":
+                o = fn()
+                do = torch.randn_like(o)
+                fn = lambda: o.backward(do, retain_graph=True)
+            ms = triton.testing.do_bench(fn, warmup=warmup, rep=rep)
+        flops_per_matmul = 2.0 * BATCH * H * N_CTX * N_CTX * HEAD_DIM
+        total_flops = 2 * flops_per_matmul
+        if causal:
+            total_flops *= 0.5
+        if mode == "bwd":
+            total_flops *= 2.5  # 2.0(bwd) + 0.5(recompute)
+        return total_flops / ms * 1e-9
     # only works on post-Ampere GPUs right now
     bench_flash_attention.run(save_path=".", print_data=True)
