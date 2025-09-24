@@ -354,7 +354,7 @@ If you use this code, please consider citing the following:
 @inproceedings{
 lin2025forgetting,
 title={Forgetting Transformer: Softmax Attention with a Forget Gate},
-author={Zhixuan Lin and Evgenii Nikishin and Xu He and Aaron Courville},
+author={Zhixuan Lin and Evgenii Nikishin and Xu Owen He and Aaron Courville},
 booktitle={The Thirteenth International Conference on Learning Representations},
 year={2025},
 url={https://openreview.net/forum?id=q2Lnyegkr8}
@@ -363,7 +363,7 @@ url={https://openreview.net/forum?id=q2Lnyegkr8}
 @inproceedings{
 lin2025adaptive,
 title={Adaptive Computation Pruning for the Forgetting Transformer},
-author={Zhixuan Lin and Johan Obando-Ceron and Xu He and Aaron Courville},
+author={Zhixuan Lin and Johan Obando-Ceron and Xu Owen He and Aaron Courville},
 booktitle={Second Conference on Language Modeling},
 year={2025},
 url={https://openreview.net/forum?id=xNj14CY5S1}
