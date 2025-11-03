@@ -101,6 +101,7 @@ DATA_DIR="./data"  # You can use any other path
 mkdir -p ${DATA_DIR}/longcrawl64
 # Install gsutil
 curl https://sdk.cloud.google.com | bash
+gcloud auth login  # Login if you haven't
 GSUTIL_PARALLEL_THREAD_COUNT=5 GSUTIL_PARALLEL_PROCESS_COUNT=5 gsutil -m cp -r 'gs://longcrawl64/*.zarr' ${DATA_DIR}/longcrawl64
 ```
 
@@ -120,6 +121,7 @@ DATA_DIR="./data"  # You can use any other path
 mkdir -p ${DATA_DIR}/longcrawl64
 # Install gsutil
 curl https://sdk.cloud.google.com | bash
+gcloud auth login  # Login if you haven't
 GSUTIL_PARALLEL_THREAD_COUNT=5 GSUTIL_PARALLEL_PROCESS_COUNT=5 gsutil -m cp -r 'gs://longcrawl64/heldout.zarr' ${DATA_DIR}/longcrawl64
 ```
 
