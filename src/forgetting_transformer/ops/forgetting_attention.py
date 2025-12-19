@@ -84,6 +84,7 @@ class ForgettingAttention(torch.autograd.Function):
         B, H, M, D = q.shape
         N = k.shape[2]
         assert log_fgate.shape == (B, H, N)
+        assert log_fgate.dtype == torch.float32, "log_fgate must be in torch.float32. It is best to do this cast before logsigmoid, e.g., torch.nn.functional.logsigmoid(fgate_logit.float())."
         if sm_scale is None:
             sm_scale = 1. / math.sqrt(D)
 
