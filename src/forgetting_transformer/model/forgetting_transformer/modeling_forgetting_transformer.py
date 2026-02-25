@@ -78,7 +78,7 @@ class ShiftLinear(nn.Module):
         out_per_head = rearrange(out, 'b t (h d) -> b t h d', h=self.num_heads)
         if T > 1:
             if attention_mask is not None:
-                out_per_head = torch.where(attention_mask[:, :, None, None], out_per_head, 0.0)
+                out_per_head = torch.where(attention_mask[:, :, None, None].bool(), out_per_head, 0.0)
             # TODO: note in this case cache is not used
             result_per_head = token_shift(out_per_head, alpha, 1.0 - alpha)
         else:
