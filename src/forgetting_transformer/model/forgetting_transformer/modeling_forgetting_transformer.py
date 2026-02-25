@@ -65,7 +65,7 @@ class ShiftLinear(nn.Module):
         s = f"{self.__class__.__name__}({self.input_dim}, {self.output_dim})"
         return s
 
-    def forward(self, x: torch.Tensor, shift_state: Optional[torch.Tensor]) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, shift_state: Optional[torch.Tensor], attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         assert x.ndim == 3, "Input must be (B, T, D)"
         B, T, D = x.size()
         out = self.linear(x)
@@ -77,6 +77,8 @@ class ShiftLinear(nn.Module):
         
         out_per_head = rearrange(out, 'b t (h d) -> b t h d', h=self.num_heads)
         if T > 1:
+            if attention_mask is not None:
+                out_per_head = torch.where(attention_mask[:, :, None, None], out_per_head, 0.0)
             # TODO: note in this case cache is not used
             result_per_head = token_shift(out_per_head, alpha, 1.0 - alpha)
         else:
@@ -301,11 +303,11 @@ class ForgettingAttentionLayer(nn.Module):
         # Shift states are updated in place
         q = self.q_proj(hidden_states)
         if self.use_k_shift:
-            k = self.k_proj(hidden_states, key_shift_state)
+            k = self.k_proj(hidden_states, key_shift_state, attention_mask=attention_mask)
         else:
             k = self.k_proj(hidden_states)
         if self.use_v_shift:
-            v = self.v_proj(hidden_states, value_shift_state)
+            v = self.v_proj(hidden_states, value_shift_state, attention_mask=attention_mask)
         else:
             v = self.v_proj(hidden_states)
 
